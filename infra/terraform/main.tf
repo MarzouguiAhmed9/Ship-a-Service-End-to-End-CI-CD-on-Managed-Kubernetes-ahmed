@@ -237,6 +237,8 @@ resource "aws_iam_role" "github_actions_role" {
   tags = {
     Project = var.cluster_name
     Env     = var.env
+    TTL     = "7d"   # optional time-to-live
+
   }
 }
 
