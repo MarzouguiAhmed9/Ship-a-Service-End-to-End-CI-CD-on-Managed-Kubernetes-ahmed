@@ -14,26 +14,9 @@
           - software-properties-common
         state: present
         update_cache: yes
+        cache_valid_time: 3600  # cache valid for 1 hour
 
-    - name: Install Docker
-      apt:
-        name: docker.io
-        state: present
 
-    - name: Ensure docker service is running
-      service:
-        name: docker
-        state: started
-        enabled: yes
-
-    - name: Enable docker experimental features (for buildx)
-      copy:
-        dest: /etc/docker/daemon.json
-        content: |
-          {
-            "experimental": true
-          }
-      notify: Restart Docker
 
     - name: Install kubectl
       shell: |
@@ -59,7 +42,7 @@
       shell: |
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
         unzip -o awscliv2.zip
-        sudo ./aws/install
+        ./aws/install
       args:
         creates: /usr/local/bin/aws
 
