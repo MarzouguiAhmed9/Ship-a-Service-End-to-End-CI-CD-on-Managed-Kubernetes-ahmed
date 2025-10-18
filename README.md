@@ -410,6 +410,10 @@ aws ec2 describe-security-groups \
 
 ---
 
+
+## 💰 Cost Guardrails
+terraform refresh && terraform output cost_report
+
 ## 📚 Project Structure
 
 ```
