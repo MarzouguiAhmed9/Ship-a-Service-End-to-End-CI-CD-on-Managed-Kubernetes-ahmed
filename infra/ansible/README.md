@@ -73,3 +73,31 @@ Add remote VM to inventory
 (Optional) ssh-keyscan for host key
 
 Test connection with ansible -m ping
+
+
+
+
+
+/////////////////////////////////
+//////////////////////CI Runner Setup Playbook///////////
+//////////////////////////////////////////////////////////
+
+Install prerequisites → Installs curl, unzip, certificates, and tools needed for other installs.
+
+Install Docker → Checks if Docker is already installed. If not, installs Docker, Docker CLI, containerd, buildx, and compose plugin.
+
+Install kubectl → Downloads and installs kubectl so the runner can manage Kubernetes clusters.
+
+Install Helm → Installs Helm to deploy apps using Helm charts.
+
+Install Terraform → Downloads and unzips Terraform so the runner can create and manage cloud infrastructure.
+
+Install AWS CLI v2 → Installs the AWS CLI to interact with AWS resources.
+
+Assume IAM role via OIDC →
+
+Uses the GitHub Actions token (GITHUB_TOKEN) to request temporary AWS credentials.
+
+Exports AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN so the runner can authenticate to AWS (ECR, EKS) without storing permanent keys.
+
+Handler: Restart Docker → If Docker config changed (like enabling buildx), restarts Docker to apply changes.
