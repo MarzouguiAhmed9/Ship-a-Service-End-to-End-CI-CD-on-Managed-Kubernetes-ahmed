@@ -101,3 +101,14 @@ Uses the GitHub Actions token (GITHUB_TOKEN) to request temporary AWS credential
 Exports AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN so the runner can authenticate to AWS (ECR, EKS) without storing permanent keys.
 
 Handler: Restart Docker → If Docker config changed (like enabling buildx), restarts Docker to apply changes.
+
+
+////////////////////////////////////////////
+//////////////////////////////
+Idempotent parts
+
+apt tasks for prerequisites with state: present → safe to run multiple times.
+
+handlers for restarting Docker → only triggered if daemon.json changes.
+
+creates: for kubectl, Helm, Terraform, AWS CLI → prevents re-downloading if already installed.
