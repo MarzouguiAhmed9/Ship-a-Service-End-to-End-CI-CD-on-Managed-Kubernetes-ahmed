@@ -1,0 +1,27 @@
+replicaCount: 1
+
+image:
+  repository: app
+  tag: latest
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  host: localhost
+  class: nginx
+
+hpa:
+  minReplicas: 1
+  maxReplicas: 3
+  cpuTarget: 50
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi

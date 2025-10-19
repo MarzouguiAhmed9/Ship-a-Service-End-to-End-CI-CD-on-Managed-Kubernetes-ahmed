@@ -1,0 +1,11 @@
+apiVersion: v2
+name: app
+description: A Helm chart for Kubernetes "Ship a Service — End-to-End CI/CD on Managed Kubernetes"
+
+#
+type: application
+
+
+version: 0.1.0
+
+
