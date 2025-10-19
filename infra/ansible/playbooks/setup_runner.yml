@@ -2,8 +2,8 @@
 - name: Setup CI Runner tools
   hosts: ci_runner
   become: yes
-  tasks:
 
+  tasks:
     - name: Install prerequisites
       apt:
         name:
@@ -13,10 +13,24 @@
           - ca-certificates
           - software-properties-common
         state: present
-        update_cache: yes
-        cache_valid_time: 3600  # cache valid for 1 hour
+        cache_valid_time: 3600
 
-
+    - name: Install Docker (only if not installed)
+      shell: |
+        if ! command -v docker >/dev/null 2>&1; then
+          apt-get install -y ca-certificates curl gnupg lsb-release
+          install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+          echo \
+            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+            $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+          apt-get update -y
+          apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        else
+          echo "Docker already installed"
+        fi
+      args:
+        creates: /usr/bin/docker
 
     - name: Install kubectl
       shell: |
@@ -32,11 +46,22 @@
         creates: /usr/local/bin/helm
 
     - name: Install Terraform
-      shell: |
-        curl -LO https://releases.hashicorp.com/terraform/1.8.8/terraform_1.8.8_linux_amd64.zip
-        unzip -o terraform_1.8.8_linux_amd64.zip -d /usr/local/bin/
-      args:
-        creates: /usr/local/bin/terraform
+      block:
+        - name: Download Terraform zip
+          ansible.builtin.get_url:
+            url: https://releases.hashicorp.com/terraform/1.8.3/terraform_1.8.3_linux_amd64.zip
+            dest: /tmp/terraform_1.8.3_linux_amd64.zip
+            mode: '0644'
+          register: download_terraform
+          until: download_terraform is succeeded
+          retries: 3
+          delay: 10
+
+        - name: Unzip Terraform
+          unarchive:
+            src: /tmp/terraform_1.8.3_linux_amd64.zip
+            dest: /usr/local/bin/
+            remote_src: yes
 
     - name: Install AWS CLI v2
       shell: |
