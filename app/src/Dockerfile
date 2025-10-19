@@ -10,7 +10,7 @@ RUN go build -o app
 FROM alpine:latest
 WORKDIR /app
 
-# Non-root user
+# Non-root user with lightweight system group
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
