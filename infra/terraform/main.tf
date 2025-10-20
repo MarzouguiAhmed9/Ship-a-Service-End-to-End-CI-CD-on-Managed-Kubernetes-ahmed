@@ -122,7 +122,7 @@ module "eks" {
   # Cluster endpoint access
   cluster_endpoint_public_access  = true
   cluster_endpoint_private_access = false
-
+  
   # Managed node groups
   eks_managed_node_groups = {
     default = {
@@ -202,11 +202,22 @@ resource "aws_ecr_lifecycle_policy" "app" {
 # ============================================================================
 # IAM ROLES FOR CI/CD (GitHub Actions OIDC)
 # ============================================================================
+resource "aws_iam_openid_connect_provider" "github" {
+  url = "https://token.actions.githubusercontent.com"
+  
+  client_id_list = ["sts.amazonaws.com"]
+
+  thumbprint_list = [
+    "6938fd4d98bab03faadb97b34396831e3780aea1"
+  ]
+
+  tags = {
+    Project = var.cluster_name
+    Env     = var.env
+  }
+}
 
 # GitHub Actions OIDC provider (must exist in your AWS account)
-data "aws_iam_openid_connect_provider" "github" {
-  arn = "arn:aws:iam::257394456022:oidc-provider/token.actions.githubusercontent.com"
-}
 
 # IAM role for GitHub Actions
 resource "aws_iam_role" "github_actions_role" {
@@ -218,7 +229,8 @@ resource "aws_iam_role" "github_actions_role" {
       {
         Effect = "Allow"
         Principal = {
-          Federated = data.aws_iam_openid_connect_provider.github.arn
+            Federated = aws_iam_openid_connect_provider.github.arn
+
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {

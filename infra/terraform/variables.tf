@@ -21,7 +21,9 @@ variable "subnet_b_cidr" {
   default     = "10.0.2.0/24"
 }
 
-# Availability zones
+# Availability zonesterraform state list
+
+
 variable "az_a" {
   description = "Availability Zone A"
   default     = "eu-north-1a"

@@ -1,5 +1,51 @@
 # Ship-a-Service: End-to-End CI/CD on Managed Kubernetes
+Launch EKS Cluster with Terraform
+1️⃣ Set AWS credentials
 
+Export your AWS keys and region:
+
+export AWS_ACCESS_KEY_ID=<your_access_key>
+export AWS_SECRET_ACCESS_KEY=<your_secret_key>
+export AWS_DEFAULT_REGION=<your_region>
+
+
+Check they are valid:
+
+aws sts get-caller-identity
+
+2️⃣ Make sure your SSH key exists
+
+If you want SSH access to nodes:
+
+Check existing keys:
+
+aws ec2 describe-key-pairs
+
+
+Create key if missing:
+
+aws ec2 create-key-pair --key-name ahmedkey --query 'KeyMaterial' --output text > ahmedkey.pem
+chmod 400 ahmedkey.pem
+
+
+Update Terraform variable ssh_key_name = "ahmedkey"
+
+3️⃣ Initialize Terraform
+terraform init
+
+4️⃣ Plan deployment
+terraform plan
+
+
+Check that Terraform plans to create your VPC, subnets, EKS cluster, node groups, and ECR repository.
+
+5️⃣ Apply deployment
+terraform apply
+
+
+Type yes when prompted.
+
+Terraform will create all resources, including node group using your SSH key.
 **Author:** Ahmed Marzougui (@MarzouguiAhmed9)  
 **Challenge:** DevOps/Technical Writer Position  
 **Status:** Phase 1 Complete - Infrastructure Provisioning ✅
@@ -459,10 +505,90 @@ ship-a-service-end-to-end-ci-cd-on-managed-kubernetes/
 - Multi-stage Dockerfile
 - Unit tests
 
-### Phase 4: Helm Chart (Planned)
-- Chart with dev/prod values
-- HPA, probes, ingress
-- Rollout strategy
+### Phase 4: Helm Chart 
+
+
+Chart with dev/prod values
+
+HPA, probes, ingress
+
+Rollout strategy
+
+1️⃣ Create the namespace
+
+kubectl create ns dev
+
+
+2️⃣ Create the private Docker Hub secret
+
+kubectl create secret docker-registry regcred \
+  --docker-username=ahmed20007 \
+  --docker-password=SaidaHamdouni2000! \
+  --docker-server=https://index.docker.io/v1/ \
+  --namespace dev
+
+
+3️⃣ Deploy the application with Helm
+
+helm upgrade --install app-dev ./ \
+  -f values.dev.yaml \
+  --namespace dev \
+  --atomic \
+  --wait \
+  --timeout 5m
+
+
+4️⃣ Check that the pods are Running
+
+kubectl get pods -n dev
+
+
+5️⃣ Check the service
+
+kubectl get svc -n dev
+
+
+Note the name and ClusterIP to test internal access.
+
+6️⃣ Test the service from a temporary pod
+
+kubectl run testpod -i --tty --rm --image=busybox --restart=Never -n dev -- sh
+
+
+Then, inside this pod:
+
+wget -q -O- http://app-dev.dev.svc.cluster.local:8080/healthz
+
+
+You should see:
+
+{"SYS_ENV":"helloworld","status":"ok"}
+
+
+7️⃣ Check the HPA
+
+kubectl get hpa -n dev -w
+
+
+HPA shows REPLICAS, CPU %, and will scale pods if CPU exceeds 50%.
+
+8️⃣ Test HPA under load
+
+kubectl run load-gen -i --tty --rm --image=busybox --restart=Never -- sh
+while true; do wget -q -O- http://app-dev.dev.svc.cluster.local:8080/healthz; done
+
+
+You should see the number of pods increase in HPA if CPU usage rises.
+
+9️⃣ Automatic rollback
+
+If the deployment fails probes or does not become ready:
+
+helm upgrade --install app-dev ./ -f values.dev.yaml --namespace dev --atomic
+
+
+Helm will automatically roll back to the previous stable version.
+
 
 ### Phase 5: CI/CD (Planned)
 - GitHub Actions workflows
