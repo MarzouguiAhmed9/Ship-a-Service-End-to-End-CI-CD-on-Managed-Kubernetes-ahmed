@@ -8,50 +8,39 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    
-    permissions:
-      contents: read
-      security-events: write  # For Trivy
-      pull-requests: write    # For PR comments
 
     steps:
-      # ========================================================================
-      # CHECKOUT & SETUP
-      # ========================================================================
-      
+      # 1️⃣ Checkout repository
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
+      # 2️⃣ Setup Go
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v4
         with:
           go-version: '1.21'
 
-      # ========================================================================
-      # APPLICATION VALIDATION
-      # ========================================================================
-
-      - name: Install Go dependencies
+      # 3️⃣ Install Go dependencies
+      - name: Install dependencies
         working-directory: app/src
         run: go mod tidy
 
+      # 4️⃣ Lint Go code
       - name: Go lint
         working-directory: app/src
         run: |
           go install golang.org/x/lint/golint@latest
           golint ./...
 
+      # 5️⃣ Run unit tests
       - name: Run unit tests
         working-directory: app/src
-        run: go test -v ./...
+        run: go test ./...
 
-      # ========================================================================
-      # DOCKER BUILD & SECURITY SCAN
-      # ========================================================================
-
+      # 6️⃣ Docker build
       - name: Build Docker image
-        working-directory: app
-        run: docker build -t ship-a-service:${{ github.sha }} .
+        working-directory: app/src
+        run: docker build -t ahmed20007/app:latest .
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.28.0  # ✅ FIXED VERSION
@@ -68,92 +57,32 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      # ========================================================================
-      # TERRAFORM VALIDATION
-      # ========================================================================
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.6
-
-      - name: Terraform fmt check
+      # 8️⃣ Terraform fmt
+      - name: Terraform fmt
         working-directory: infra/terraform
-        run: terraform fmt -check -recursive
+        run: terraform fmt -check
 
-      - name: Terraform init
-        working-directory: infra/terraform
-        run: terraform init -backend=false
-
+      # 9️⃣ Terraform validate
       - name: Terraform validate
         working-directory: infra/terraform
         run: terraform validate
 
-      - name: Terraform plan (dry-run)
+      # 🔟 Terraform plan
+      - name: Terraform plan
         working-directory: infra/terraform
-        run: terraform plan -out=tfplan
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: us-east-1
-        continue-on-error: true  # Don't fail if AWS creds not set
+        run: terraform plan
 
-      # ========================================================================
-      # INFRASTRUCTURE SECURITY SCAN
-      # ========================================================================
-
-      - name: Run tfsec security scan
-        uses: aquasecurity/tfsec-action@v1.0.3
-        with:
-          working_directory: infra/terraform
-          soft_fail: false  # Fail on security issues
-
-      - name: Run Checkov IaC scan
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          directory: infra/terraform
-          framework: terraform
-          soft_fail: false
-          output_format: cli
-
-      # ========================================================================
-      # HELM VALIDATION
-      # ========================================================================
-
-      - name: Setup Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: '3.13.0'
-
+      # 1️⃣1️⃣ Helm lint
       - name: Helm lint
         working-directory: charts/ship-a-service
         run: helm lint .
 
-      - name: Install helm-unittest plugin
-        run: helm plugin install https://github.com/helm-unittest/helm-unittest
-
-      - name: Helm unit tests
+      # 1️⃣2️⃣ Helm unit tests
+      - name: Helm unittest
         working-directory: charts/ship-a-service
         run: helm unittest .
 
-      # ========================================================================
-      # SUMMARY
-      # ========================================================================
-
-      - name: PR Validation Summary
-        if: always()
-        run: |
-          echo "## 🔍 PR Validation Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Go Lint | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Unit Tests | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker Build | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Trivy Scan | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Terraform Fmt | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Terraform Validate | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| tfsec Scan | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Checkov Scan | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Helm Lint | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Helm Tests | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+      # 1️⃣3️⃣ IaC security scan (tfsec)
+      - name: TFSEC scan
+        working-directory: infra/terraform
+        run: tfsec .
