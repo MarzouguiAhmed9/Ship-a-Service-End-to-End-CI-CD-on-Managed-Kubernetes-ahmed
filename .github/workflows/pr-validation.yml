@@ -10,59 +10,74 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # 2️⃣ Setup Go
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.21' # match your Go version
+          go-version: '1.21'
 
+      # 3️⃣ Install Go dependencies
       - name: Install dependencies
+        working-directory: app/src
         run: go mod tidy
 
       # 4️⃣ Lint Go code
       - name: Go lint
+        working-directory: app/src
         run: |
           go install golang.org/x/lint/golint@latest
           golint ./...
 
       # 5️⃣ Run unit tests
       - name: Run unit tests
+        working-directory: app/src
         run: go test ./...
 
       # 6️⃣ Docker build
       - name: Build Docker image
-        run: docker build -t ahmed20007/app:latest ./app/src
+        working-directory: app/src
+        run: docker build -t ahmed20007/app:latest .
 
-      # 7️⃣ Trivy security scan
+      # 7️⃣ Install Trivy
       - name: Install Trivy
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
           sudo mv trivy /usr/local/bin/
+
+      # 8️⃣ Trivy security scan
       - name: Trivy scan
         run: trivy image --exit-code 1 --severity HIGH,CRITICAL ahmed20007/app:latest
 
-      # 8️⃣ Terraform fmt
+      # 9️⃣ Terraform fmt
       - name: Terraform fmt
+        working-directory: infra/terraform
         run: terraform fmt -check
 
-      # 9️⃣ Terraform validate
+      # 🔟 Terraform validate
       - name: Terraform validate
+        working-directory: infra/terraform
         run: terraform validate
 
-      # 🔟 Terraform plan
+      # 1️⃣1️⃣ Terraform plan
       - name: Terraform plan
+        working-directory: infra/terraform
         run: terraform plan
 
-      # 1️⃣1️⃣ Helm lint
+      # 1️⃣2️⃣ Helm lint
       - name: Helm lint
-        run: helm lint charts/ship-a-service
+        working-directory: charts/ship-a-service
+        run: helm lint .
 
-      # 1️⃣2️⃣ Helm unit tests
+      # 1️⃣3️⃣ Helm unit tests
       - name: Helm unittest
-        run: helm unittest charts/ship-a-service
+        working-directory: charts/ship-a-service
+        run: helm unittest .
 
-      # 1️⃣3️⃣ IaC security scan (tfsec)
+      # 1️⃣4️⃣ IaC security scan (tfsec)
       - name: TFSEC scan
+        working-directory: infra/terraform
         run: tfsec .
