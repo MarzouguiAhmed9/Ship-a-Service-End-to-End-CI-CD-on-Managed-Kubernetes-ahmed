@@ -42,42 +42,40 @@ jobs:
         working-directory: app/src
         run: docker build -t ahmed20007/app:latest .
 
-      # 7️⃣ Install Trivy
-      - name: Install Trivy
-        run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
-          sudo mv trivy /usr/local/bin/
+      # 7️⃣ Trivy scan using official Action
+      - name: Trivy security scan
+        uses: aquasecurity/trivy-action@v2
+        with:
+          image-ref: ahmed20007/app:latest
+          severity: HIGH,CRITICAL
+          exit-code: 1
 
-      # 8️⃣ Trivy security scan
-      - name: Trivy scan
-        run: trivy image --exit-code 1 --severity HIGH,CRITICAL ahmed20007/app:latest
-
-      # 9️⃣ Terraform fmt
+      # 8️⃣ Terraform fmt
       - name: Terraform fmt
         working-directory: infra/terraform
         run: terraform fmt -check
 
-      # 🔟 Terraform validate
+      # 9️⃣ Terraform validate
       - name: Terraform validate
         working-directory: infra/terraform
         run: terraform validate
 
-      # 1️⃣1️⃣ Terraform plan
+      # 🔟 Terraform plan
       - name: Terraform plan
         working-directory: infra/terraform
         run: terraform plan
 
-      # 1️⃣2️⃣ Helm lint
+      # 1️⃣1️⃣ Helm lint
       - name: Helm lint
         working-directory: charts/ship-a-service
         run: helm lint .
 
-      # 1️⃣3️⃣ Helm unit tests
+      # 1️⃣2️⃣ Helm unit tests
       - name: Helm unittest
         working-directory: charts/ship-a-service
         run: helm unittest .
 
-      # 1️⃣4️⃣ IaC security scan (tfsec)
+      # 1️⃣3️⃣ IaC security scan (tfsec)
       - name: TFSEC scan
         working-directory: infra/terraform
         run: tfsec .
