@@ -1,12 +1,15 @@
+
+name: app-dev   
+
 replicaCount: 1
 
 image:
-  repository: ahmed20007/app   # private Docker Hub image
+  repository: ahmed20007/app  
   tag: latest
 
 service:
   type: ClusterIP
-  port: 8080          # <-- fixed to match containerPort
+  port: 8080        
 
 ingress:
   enabled: true
@@ -27,4 +30,4 @@ resources:
     memory: 256Mi
 
 imagePullSecrets:
-  - name: regcred    # secret for private Docker Hub image
+  - name: regcred    

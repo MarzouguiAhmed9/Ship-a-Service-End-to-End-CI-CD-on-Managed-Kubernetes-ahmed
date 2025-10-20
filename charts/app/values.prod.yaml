@@ -1,18 +1,32 @@
-replicaCount: 3
+name: app-prod
+
+replicaCount: 3                
 
 image:
-  repository: app
-  tag: "main"
+  repository: ahmed20007/app
+  tag: main                     
 
 service:
-  type: LoadBalancer
-  port: 80
+  type: ClusterIP
+  port: 8080
 
 ingress:
   enabled: true
-  host: app.example.com
+  host: app.example.com          # domaine prod
+  class: nginx
 
 hpa:
   minReplicas: 3
   maxReplicas: 10
-  cpuTarget: 70
+  cpuTarget: 50
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 1
+    memory: 1Gi
+
+imagePullSecrets:
+  - name: regcred
