@@ -45,7 +45,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.28.0  # ✅ FIXED VERSION
         with:
-          image-ref: ship-a-service:${{ github.sha }}
+          image-ref: ahmed20007/app:latest  # must match built image tag
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
