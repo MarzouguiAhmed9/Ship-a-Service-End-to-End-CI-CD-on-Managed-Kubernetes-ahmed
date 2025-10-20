@@ -42,49 +42,56 @@ jobs:
         working-directory: app/src
         run: docker build -t ahmed20007/app:latest .
 
+      # 7️⃣ Run Trivy vulnerability scanner (continue on vulns)
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.28.0  # ✅ FIXED VERSION
+        uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: ahmed20007/app:latest  # must match built image tag
+          image-ref: ahmed20007/app:latest
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
-          ignore-unfixed: true  # optional: ignore vulnerabilities that have no fix
-          exit-code: '0'        # ✅ continue even if vulnerabilities are found
+          ignore-unfixed: true
+          exit-code: '0'
 
-
+      # 8️⃣ Upload Trivy results to GitHub Security
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
 
-      # 8️⃣ Terraform fmt
+      # 9️⃣ Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.7.7
+
+      # 🔟 Terraform fmt
       - name: Terraform fmt
         working-directory: infra/terraform
         run: terraform fmt -check
 
-      # 9️⃣ Terraform validate
+      # 1️⃣1️⃣ Terraform validate
       - name: Terraform validate
         working-directory: infra/terraform
         run: terraform validate
 
-      # 🔟 Terraform plan
+      # 1️⃣2️⃣ Terraform plan
       - name: Terraform plan
         working-directory: infra/terraform
         run: terraform plan
 
-      # 1️⃣1️⃣ Helm lint
+      # 1️⃣3️⃣ Helm lint
       - name: Helm lint
         working-directory: charts/ship-a-service
         run: helm lint .
 
-      # 1️⃣2️⃣ Helm unit tests
+      # 1️⃣4️⃣ Helm unit tests
       - name: Helm unittest
         working-directory: charts/ship-a-service
         run: helm unittest .
 
-      # 1️⃣3️⃣ IaC security scan (tfsec)
+      # 1️⃣5️⃣ IaC security scan (tfsec)
       - name: TFSEC scan
         working-directory: infra/terraform
         run: tfsec .
