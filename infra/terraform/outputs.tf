@@ -17,7 +17,7 @@ output "cluster_certificate_authority_data" {
 }
 
 output "kubeconfig_yaml" {
-  value = <<EOT
+  value     = <<EOT
 apiVersion: v1
 clusters:
 - cluster:

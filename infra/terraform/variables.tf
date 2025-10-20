@@ -1,7 +1,7 @@
 # AWS region sotkholm
 variable "region" {
   description = "AWS region for resources"
-  default     = "eu-north-1"  
+  default     = "eu-north-1"
 }
 
 # VPC CIDR block
@@ -37,10 +37,10 @@ variable "az_b" {
 
 
 # eks variable
- variable "cluster_name" { default = "ship-a-service" }
-variable "env"         { default = "dev" }
-variable "node_type"   { default = "t3.medium" }   
-variable "node_min"    { default = 1 }
-variable "node_desired"{ default = 1 }
-variable "node_max"    { default = 2 }
-variable "ssh_key_name"{ default = "ahmedkey" }          
+variable "cluster_name" { default = "ship-a-service" }
+variable "env" { default = "dev" }
+variable "node_type" { default = "t3.medium" }
+variable "node_min" { default = 1 }
+variable "node_desired" { default = 1 }
+variable "node_max" { default = 2 }
+variable "ssh_key_name" { default = "ahmedkey" }

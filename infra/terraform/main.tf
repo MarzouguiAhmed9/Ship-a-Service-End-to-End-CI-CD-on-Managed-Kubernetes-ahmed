@@ -122,7 +122,7 @@ module "eks" {
   # Cluster endpoint access
   cluster_endpoint_public_access  = true
   cluster_endpoint_private_access = false
-  
+
   # Managed node groups
   eks_managed_node_groups = {
     default = {
@@ -130,7 +130,7 @@ module "eks" {
       min_size       = var.node_min
       max_size       = var.node_max
       instance_types = [var.node_type]
-      
+
       # SSH key for node access
       key_name = var.ssh_key_name
 
@@ -204,7 +204,7 @@ resource "aws_ecr_lifecycle_policy" "app" {
 # ============================================================================
 resource "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
-  
+
   client_id_list = ["sts.amazonaws.com"]
 
   thumbprint_list = [
@@ -229,7 +229,7 @@ resource "aws_iam_role" "github_actions_role" {
       {
         Effect = "Allow"
         Principal = {
-            Federated = aws_iam_openid_connect_provider.github.arn
+          Federated = aws_iam_openid_connect_provider.github.arn
 
         }
         Action = "sts:AssumeRoleWithWebIdentity"
@@ -249,7 +249,7 @@ resource "aws_iam_role" "github_actions_role" {
   tags = {
     Project = var.cluster_name
     Env     = var.env
-    TTL     = "7d"   # optional time-to-live
+    TTL     = "7d" # optional time-to-live
 
   }
 }
