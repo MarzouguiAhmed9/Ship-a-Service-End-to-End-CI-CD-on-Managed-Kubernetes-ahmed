@@ -10,18 +10,15 @@ spec:
   selector:
     matchLabels:
       app: {{ include "app.name" . }}
-  template:
-    metadata:
-      labels:
-        app: {{ include "app.name" . }}
-spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 1
       maxSurge: 1
-
   template:
+    metadata:
+      labels:
+        app: {{ include "app.name" . }}
     spec:
       containers:
         - name: app
@@ -47,7 +44,6 @@ spec:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
-
       imagePullSecrets:
         {{- if .Values.imagePullSecrets }}
         {{- range .Values.imagePullSecrets }}
