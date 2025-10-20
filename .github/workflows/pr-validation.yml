@@ -60,16 +60,14 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      # 9️⃣ Setup Terraform
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.6.9
+          terraform_version: 1.6.6  # ✅ FIXED - Valid version
 
-      # 🔟 Terraform fmt
-      - name: Terraform fmt
+      - name: Terraform fmt check
         working-directory: infra/terraform
-        run: terraform fmt -check
+        run: terraform fmt -check -recursive
 
       # 1️⃣1️⃣ Terraform validate
       - name: Terraform validate
