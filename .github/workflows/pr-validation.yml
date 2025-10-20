@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repo
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -42,9 +42,9 @@ jobs:
         working-directory: app/src
         run: docker build -t ahmed20007/app:latest .
 
-      # 7️⃣ Trivy scan using official Action
+      # 7️⃣ Trivy scan (official Action)
       - name: Trivy security scan
-        uses: aquasecurity/trivy-action@v2.11.1
+        uses: aquasecurity/trivy-action@v2
         with:
           image-ref: ahmed20007/app:latest
           severity: HIGH,CRITICAL
