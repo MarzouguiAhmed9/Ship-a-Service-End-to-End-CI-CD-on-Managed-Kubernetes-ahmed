@@ -44,7 +44,7 @@ jobs:
 
       # 7️⃣ Trivy scan (official Action)
       - name: Trivy security scan
-        uses: aquasecurity/trivy-action@v2
+        uses: aquasecurity/trivy-action@v2.11.1
         with:
           image-ref: ahmed20007/app:latest
           severity: HIGH,CRITICAL
