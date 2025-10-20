@@ -65,9 +65,18 @@ jobs:
         with:
           terraform_version: 1.6.6  # ✅ FIXED - Valid version
 
+
+
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: terraform init -input=false
+
+
       - name: Terraform fmt check
         working-directory: infra/terraform
         run: terraform fmt -check -recursive
+
+
 
       # 1️⃣1️⃣ Terraform validate
       - name: Terraform validate
