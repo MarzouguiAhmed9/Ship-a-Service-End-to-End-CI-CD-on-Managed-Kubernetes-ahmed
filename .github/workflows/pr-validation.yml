@@ -92,7 +92,7 @@ jobs:
 
       # 1️⃣4️⃣ Helm lint
       - name: Helm lint
-        working-directory: charts/ship-a-service
+        working-directory: charts/app
         run: helm lint .
 
       # 1️⃣5️⃣ Helm unit tests
