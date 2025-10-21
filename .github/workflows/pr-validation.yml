@@ -109,7 +109,7 @@ jobs:
         run: |
           curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
 
-      # 1️⃣8️⃣ IaC security scan (tfsec)
+      # 1️⃣8️⃣ TFSEC scan
       - name: TFSEC scan
         working-directory: infra/terraform
         run: tfsec . --severity CRITICAL,HIGH --exit-code 1
