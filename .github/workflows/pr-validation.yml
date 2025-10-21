@@ -95,12 +95,16 @@ jobs:
         working-directory: charts/app
         run: helm lint . -f values.dev.yaml
 
-      # 1️⃣5️⃣ Helm unit tests
-      - name: Helm unittest
-        working-directory: charts/app
+      # 1️⃣5️⃣ Install Helm unittest plugin
+      - name: Install Helm unittest plugin
+        run: helm plugin install https://github.com/quintush/helm-unittest
+
+      # 1️⃣6️⃣ Helm unit tests
+      - name: Helm unit tests
+        working-directory: charts/ship-a-service
         run: helm unittest .
 
-      # 1️⃣6️⃣ IaC security scan (tfsec)
+      # 1️⃣7️⃣ IaC security scan (tfsec)
       - name: TFSEC scan
         working-directory: infra/terraform
         run: tfsec .
