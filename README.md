@@ -596,8 +596,9 @@ GitHub Actions CI Pipeline Testing
 This guide explains how to test the CI workflow for this repository using a test branch and pull request. The workflow includes: Go lint & tests, Docker build & Trivy scan, Terraform fmt/validate/plan, Helm lint/unit tests, and TFSEC IaC security scan.
 
 1️⃣ Create a test branch
-git checkout -b test-ci
-git push origin test-ci
+git siwtch test-ci
+
+
 
 2️⃣ Make a small change to trigger CI
 # Example: add a comment
