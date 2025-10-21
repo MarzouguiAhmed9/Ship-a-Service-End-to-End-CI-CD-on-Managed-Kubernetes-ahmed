@@ -7,8 +7,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write       # Required for OIDC to assume AWS role
-  contents: read        # Required for checkout
+  id-token: write
+  contents: read
+  security-events: write  # ✅ Added for security scanning
 
 jobs:
   build-and-deploy:
@@ -60,7 +61,6 @@ jobs:
         run: |
           aws eks update-kubeconfig --name ship-a-service --region $AWS_REGION
 
-
       - name: Setup Helm
         uses: azure/setup-helm@v4
         with:
@@ -77,6 +77,7 @@ jobs:
             --create-namespace \
             --wait \
             --timeout 5m
+
       - name: Debug - List all resources
         run: |
           echo "=== Helm Release Status ==="
@@ -97,6 +98,7 @@ jobs:
           echo ""
           echo "=== Helm Manifest ==="
           helm get manifest ship-a-service -n default | grep -A 20 "kind: Deployment"
+
       - name: Check deployment status
         run: |
           echo "Checking deployment rollout..."
@@ -107,3 +109,62 @@ jobs:
           
           echo "Pod details:"
           kubectl describe pods -n default -l app=app
+
+      # ========================================
+      # NEW: SECURITY & REPORTING
+      # ========================================
+      
+      # Generate SBOM
+      - name: Generate SBOM
+        if: success()
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          syft $IMAGE_URI:${GITHUB_SHA::8} -o spdx-json > sbom.json
+
+      # Scan vulnerabilities
+      - name: Scan vulnerabilities
+        if: success()
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          grype $IMAGE_URI:${GITHUB_SHA::8} -o sarif > vulnerabilities.sarif
+          grype $IMAGE_URI:${GITHUB_SHA::8} || true
+
+      # Upload to GitHub Security
+      - name: Upload scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: success()
+        with:
+          sarif_file: vulnerabilities.sarif
+
+      # Upload SBOM artifact
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: sbom-${GITHUB_SHA::8}
+          path: sbom.json
+          retention-days: 90
+
+      # Generate deployment report
+      - name: Generate deployment report
+        if: always()
+        run: |
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S')
+          HELM_REV=$(helm list -n default -o json | jq -r '.[0].revision')
+          
+          cat > report.md << EOF
+          # 🚀 Deployment Report
+          
+          **Image**: \`$IMAGE_URI:${GITHUB_SHA::8}\`  
+          **Helm Revision**: \`$HELM_REV\`  
+          **Deployed by**: @${{ github.actor }}  
+          **Time (UTC)**: $TIMESTAMP  
+          **Trigger**: ${{ github.event_name == 'workflow_dispatch' && '🖱️ Manual' || '📝 Push' }}
+          
+          ## 🔗 Links
+          - [Workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - [SBOM](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - [Security](${{ github.server_url }}/${{ github.repository }}/security/code-scanning)
+          EOF
+          
+          cat report.md >> $GITHUB_STEP_SUMMARY
