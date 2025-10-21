@@ -23,6 +23,7 @@ jobs:
       # 1️⃣ Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
+
       # 2️⃣ Configure AWS credentials via OIDC
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -32,9 +33,11 @@ jobs:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
       # 3️⃣ Verify AWS credentials
+      - name: Verify AWS credentials
         run: |
           aws sts get-caller-identity
           echo "✅ AWS authentication successful"
+
       # 4️⃣ Login to Amazon ECR
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
