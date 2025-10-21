@@ -6,17 +6,21 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  id-token: write       # Required for OIDC to assume AWS role
+  contents: read        # Required for checkout
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     env:
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       AWS_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       ECR_REPO: ship-a-service
       IMAGE_URI: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/ship-a-service
 
     steps:
-      # 1️⃣ Checkout repository
+      # 1️⃣ Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -28,18 +32,19 @@ jobs:
           role-session-name: GitHubActions-${{ github.run_id }}
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           audience: sts.amazonaws.com
+          output-env-credentials: true
 
-      # 2️⃣a Verify AWS credentials (check OIDC)
+      # 3️⃣ Verify AWS credentials
       - name: Verify AWS credentials
         run: |
           aws sts get-caller-identity
           echo "✅ AWS authentication successful"
 
-      # 3️⃣ Login to ECR
+      # 4️⃣ Login to Amazon ECR
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 4️⃣ Build and push Docker image
+      # 5️⃣ Build and push Docker image
       - name: Build and push Docker image
         working-directory: app/src
         run: |
@@ -48,12 +53,12 @@ jobs:
           docker push $IMAGE_URI:main
           docker push $IMAGE_URI:${GITHUB_SHA::8}
 
-      # 5️⃣ Configure kubectl for EKS
+      # 6️⃣ Configure kubectl for EKS
       - name: Configure kubectl for EKS
         run: |
           aws eks update-kubeconfig --name ship-a-service --region $AWS_REGION
 
-      # 6️⃣ Deploy with Helm
+      # 7️⃣ Helm deploy to dev
       - name: Helm deploy to dev
         working-directory: charts/app
         run: |
@@ -63,7 +68,7 @@ jobs:
             --set image.tag=${GITHUB_SHA::8} \
             --wait --timeout 5m
 
-      # 7️⃣ Verify deployment health
+      # 8️⃣ Verify deployment health
       - name: Verify deployment health
         run: |
           kubectl rollout status deployment/ship-a-service --timeout=60s
