@@ -77,7 +77,7 @@ jobs:
 
       - name: Terraform Apply
         working-directory: infra/terraform
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -refresh-only -auto-approve
 
       # ========================================
       # 7️⃣ DEPLOY TO DEV WITH HELM
