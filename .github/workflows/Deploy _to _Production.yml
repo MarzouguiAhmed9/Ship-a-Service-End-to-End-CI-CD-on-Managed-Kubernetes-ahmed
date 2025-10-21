@@ -8,9 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://your-prod-app-url.com  # optional
     steps:
-      # 1️⃣ Checkout code
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -27,7 +26,7 @@ jobs:
         run: |
           aws eks update-kubeconfig \
             --region ${{ secrets.AWS_DEFAULT_REGION }} \
-            --name your-eks-cluster-name
+            --name ship-a-service
 
       # 4️⃣ Pull latest Docker image from ECR
       - name: Pull latest Docker image
@@ -53,4 +52,3 @@ jobs:
           if [ "$STATUS" -ne 200 ]; then
             echo "Health check failed"
             exit 1
-          fi
