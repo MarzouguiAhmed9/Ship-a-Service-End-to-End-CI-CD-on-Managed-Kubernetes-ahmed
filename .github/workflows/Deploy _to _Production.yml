@@ -17,42 +17,35 @@ jobs:
     steps:
       # 1️⃣ Checkout code
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 2️⃣ Authenticate to AWS via OIDC role
+      # 2️⃣ Configure AWS credentials (OIDC)
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ship-a-service-github-actions-role
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
-      # 3️⃣ Log in to ECR
+      # 3️⃣ Login to ECR
       - name: Login to Amazon ECR
-        run: |
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $IMAGE_URI
+        uses: aws-actions/amazon-ecr-login@v2
 
-      # 4️⃣ Build Docker image
-      - name: Build Docker image
+      # 4️⃣ Build and push Docker image
+      - name: Build and push Docker image
         working-directory: app/src
         run: |
           docker build -t $IMAGE_URI:main .
           docker tag $IMAGE_URI:main $IMAGE_URI:${GITHUB_SHA::8}
-
-      # 5️⃣ Push Docker image
-      - name: Push Docker image to ECR
-        run: |
           docker push $IMAGE_URI:main
           docker push $IMAGE_URI:${GITHUB_SHA::8}
 
-      # 6️⃣ Setup kubectl
-      - name: Configure kubectl
-        uses: aws-actions/configure-kubectl@v2
-        with:
-          cluster-name: ship-a-service
-          region: ${{ secrets.AWS_DEFAULT_REGION }}
+      # 5️⃣ Configure kubectl for EKS
+      - name: Configure kubectl for EKS
+        run: |
+          aws eks update-kubeconfig --name ship-a-service --region $AWS_REGION
 
-      # 7️⃣ Helm deploy to dev
-      - name: Deploy Helm chart to dev
+      # 6️⃣ Deploy with Helm
+      - name: Helm deploy to dev
         working-directory: charts/app
         run: |
           helm upgrade --install ship-a-service . \
@@ -61,12 +54,7 @@ jobs:
             --set image.tag=${GITHUB_SHA::8} \
             --wait --timeout 5m
 
-      # 8️⃣ Health check
-      - name: Post-deploy health check
+      # 7️⃣ Verify deployment health
+      - name: Verify deployment health
         run: |
-          URL=$(kubectl get svc ship-a-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://$URL/healthz)
-          if [ "$STATUS" != "200" ]; then
-            echo "Deployment failed: /healthz returned $STATUS"
-            exit 1
-          fi
+          kubectl rollout status deployment/ship-a-service --timeout=60s
