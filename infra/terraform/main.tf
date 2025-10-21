@@ -201,14 +201,19 @@ resource "aws_ecr_lifecycle_policy" "app" {
 
 # ============================================================================
 # IAM ROLES FOR CI/CD (GitHub Actions OIDC)
+## ============================================================================
+# GITHUB OIDC PROVIDER
 # ============================================================================
+
 resource "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
   
   client_id_list = ["sts.amazonaws.com"]
 
+  # ✅ Updated thumbprints (GitHub's latest)
   thumbprint_list = [
-    "6938fd4d98bab03faadb97b34396831e3780aea1"
+    "6938fd4d98bab03faadb97b34396831e3780aea1",
+    "1c58a3a8518e8759bf075b76b750d4f2df264fcd"
   ]
 
   tags = {
@@ -217,9 +222,10 @@ resource "aws_iam_openid_connect_provider" "github" {
   }
 }
 
-# GitHub Actions OIDC provider (must exist in your AWS account)
+# ============================================================================
+# GITHUB ACTIONS IAM ROLE
+# ============================================================================
 
-# IAM role for GitHub Actions
 resource "aws_iam_role" "github_actions_role" {
   name = "${var.cluster_name}-github-actions-role"
 
@@ -229,8 +235,7 @@ resource "aws_iam_role" "github_actions_role" {
       {
         Effect = "Allow"
         Principal = {
-            Federated = aws_iam_openid_connect_provider.github.arn
-
+          Federated = aws_iam_openid_connect_provider.github.arn
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
@@ -238,8 +243,8 @@ resource "aws_iam_role" "github_actions_role" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            # Allow any branch/tag in your repository
-            "token.actions.githubusercontent.com:sub" = "repo:MarzouguiAhmed9/ship-a-service-end-to-end-ci-cd-on-managed-kubernetes:*"
+            # ✅ FIXED: Correct repository name (case-sensitive!)
+            "token.actions.githubusercontent.com:sub" = "repo:MarzouguiAhmed9/Ship-a-Service-End-to-End-CI-CD-on-Managed-Kubernetes-ahmed:*"
           }
         }
       }
@@ -249,8 +254,7 @@ resource "aws_iam_role" "github_actions_role" {
   tags = {
     Project = var.cluster_name
     Env     = var.env
-    TTL     = "7d"   # optional time-to-live
-
+    TTL     = "7d"
   }
 }
 
