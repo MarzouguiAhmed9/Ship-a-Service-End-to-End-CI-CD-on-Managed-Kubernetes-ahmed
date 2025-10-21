@@ -101,7 +101,7 @@ jobs:
 
       # 1️⃣6️⃣ Helm unit tests
       - name: Helm unit tests
-        working-directory: charts/ship-a-service
+        working-directory: charts/app
         run: helm unittest .
 
       # 1️⃣7️⃣ IaC security scan (tfsec)
