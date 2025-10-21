@@ -26,6 +26,7 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ship-a-service-github-actions-role
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          audience: sts.amazonaws.com
 
       # 3️⃣ Login to Amazon ECR
       - name: Login to Amazon ECR
