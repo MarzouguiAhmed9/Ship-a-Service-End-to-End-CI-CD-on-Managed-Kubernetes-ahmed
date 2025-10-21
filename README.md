@@ -591,10 +591,53 @@ Helm will automatically roll back to the previous stable version.
 
 
 ### Phase 5: CI/CD (Planned)
-- GitHub Actions workflows
-- Security scanning (Trivy, Checkov)
-- Automated deployments
+GitHub Actions CI Pipeline Testing
 
+This guide explains how to test the CI workflow for this repository using a test branch and pull request. The workflow includes: Go lint & tests, Docker build & Trivy scan, Terraform fmt/validate/plan, Helm lint/unit tests, and TFSEC IaC security scan.
+
+1️⃣ Create a test branch
+git checkout -b test-ci
+git push origin test-ci
+
+2️⃣ Make a small change to trigger CI
+# Example: add a comment
+echo "// trigger CI test" >> app/src/main.go
+git add app/src/main.go
+git commit -m "Test CI workflow"
+git push origin test-ci
+
+3️⃣ Open a Pull Request
+
+Go to GitHub → your repo → “Pull Requests” → “New pull request”
+
+Base: main
+
+Compare: test-ci
+
+This automatically triggers the workflow because it runs on pull_request to main.
+
+4️⃣ Check workflow run
+
+Go to the Actions tab → click the latest run → view logs for each step:
+
+1️⃣ Checkout repository
+2️⃣ Setup Go
+3️⃣ Install dependencies
+4️⃣ Go lint
+5️⃣ Run unit tests
+6️⃣ Docker build
+7️⃣ Trivy vulnerability scan
+8️⃣ Upload Trivy SARIF results
+9️⃣ Setup Terraform
+🔟 Terraform Init
+1️⃣1️⃣ Terraform fmt check
+1️⃣2️⃣ Terraform validate
+1️⃣3️⃣ Terraform plan
+1️⃣4️⃣ Helm lint
+1️⃣5️⃣ Install Helm unittest plugin
+1️⃣6️⃣ Helm unit tests
+1️⃣7️⃣ Install tfsec
+1️⃣8️⃣ TFSEC IaC security scan
 ---
 
 ## 📊 Progress Tracker
