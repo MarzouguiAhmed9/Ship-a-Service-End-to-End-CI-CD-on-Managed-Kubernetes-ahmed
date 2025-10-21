@@ -4,14 +4,14 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # allows manual run
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     env:
-      AWS_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       ECR_REPO: ship-a-service
       IMAGE_URI: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/ship-a-service
 
@@ -22,10 +22,18 @@ jobs:
 
       # 2️⃣ Configure AWS credentials via OIDC
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ship-a-service-github-actions-role
+          role-session-name: GitHubActions-${{ github.run_id }}
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          audience: sts.amazonaws.com
+
+      # 2️⃣a Verify AWS credentials (check OIDC)
+      - name: Verify AWS credentials
+        run: |
+          aws sts get-caller-identity
+          echo "✅ AWS authentication successful"
 
       # 3️⃣ Login to ECR
       - name: Login to Amazon ECR
