@@ -1,0 +1,56 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:  # manual trigger
+
+jobs:
+  deploy-prod:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://your-prod-app-url.com  # optional
+    steps:
+      # 1️⃣ Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+      # 3️⃣ Set EKS context
+      - name: Configure kubectl for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --name your-eks-cluster-name
+
+      # 4️⃣ Pull latest Docker image from ECR
+      - name: Pull latest Docker image
+        run: |
+          IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/ship-a-service:main
+          docker pull $IMAGE_URI
+
+      # 5️⃣ Deploy Helm chart to prod
+      - name: Helm deploy to production
+        run: |
+          helm upgrade ship-a-service charts/app \
+            --install \
+            --namespace production \
+            -f charts/app/values.prod.yaml \
+            --wait \
+            --timeout 5m
+
+      # 6️⃣ Verify health check
+      - name: Smoke test /healthz
+        run: |
+          SERVICE_URL=$(kubectl get svc ship-a-service -n production -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://$SERVICE_URL/healthz)
+          if [ "$STATUS" -ne 200 ]; then
+            echo "Health check failed"
+            exit 1
+          fi

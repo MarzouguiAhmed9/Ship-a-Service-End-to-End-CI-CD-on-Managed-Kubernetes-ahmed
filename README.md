@@ -641,6 +641,41 @@ Go to the Actions tab → click the latest run → view logs for each step:
 1️⃣8️⃣ TFSEC IaC security scan
 ---
 
+# Build & Push Docker to Amazon ECR
+
+This GitHub Actions workflow builds a Docker image from your app and pushes it to AWS ECR.
+
+When it runs
+
+On push to main branch
+
+Can also be triggered manually via workflow_dispatch
+
+Steps
+
+Checkout code
+Pulls your repository so the workflow can access your app.
+Configure AWS credentials
+Uses GitHub secrets to authenticate with AWS.
+Login to Amazon ECR
+Logs Docker into your ECR registry to allow image pushes.
+Build Docker image
+Builds image from app/src
+Tags image with:
+main → latest version
+Short commit SHA → unique version for traceability
+Push Docker image
+Pushes both tags to ECR.
+
+Show pushed tags
+Prints image tags in workflow logs.
+
+Environment variables (from GitHub Secrets)
+AWS_ACCOUNT_ID → Your AWS account ID
+AWS_DEFAULT_REGION → AWS region for ECR
+AWS_ACCESS_KEY_ID → AWS IAM key
+AWS_SECRET_ACCESS_KEY → AWS IAM secret key
+
 ## 📊 Progress Tracker
 
 | Phase | Component | Status | Progress |
