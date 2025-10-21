@@ -71,17 +71,22 @@ jobs:
         working-directory: infra/terraform
         run: terraform init -input=false
 
-      # 1️⃣1️⃣ Terraform fmt check
+      # 1️⃣1️⃣ Terraform fmt fix (auto-format)
+      - name: Terraform fmt fix
+        working-directory: infra/terraform
+        run: terraform fmt -recursive
+
+      # 1️⃣2️⃣ Terraform fmt check
       - name: Terraform fmt check
         working-directory: infra/terraform
         run: terraform fmt -check -recursive
 
-      # 1️⃣2️⃣ Terraform validate
+      # 1️⃣3️⃣ Terraform validate
       - name: Terraform validate
         working-directory: infra/terraform
         run: terraform validate
 
-      # 1️⃣3️⃣ Terraform plan
+      # 1️⃣4️⃣ Terraform plan
       - name: Terraform Plan
         working-directory: infra/terraform
         env:
@@ -90,26 +95,26 @@ jobs:
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
         run: terraform plan
 
-      # 1️⃣4️⃣ Helm lint
+      # 1️⃣5️⃣ Helm lint
       - name: Helm lint
         working-directory: charts/app
         run: helm lint . -f values.dev.yaml
 
-      # 1️⃣5️⃣ Install Helm unittest plugin
+      # 1️⃣6️⃣ Install Helm unittest plugin
       - name: Install Helm unittest plugin
         run: helm plugin install https://github.com/quintush/helm-unittest
 
-      # 1️⃣6️⃣ Helm unit tests
+      # 1️⃣7️⃣ Helm unit tests
       - name: Helm unit tests
         working-directory: charts/app
         run: helm unittest .
 
-      # 1️⃣7️⃣ Install tfsec
+      # 1️⃣8️⃣ Install tfsec
       - name: Install tfsec
         run: |
           curl -sSL https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
 
-      # 1️⃣8️⃣ TFSEC scan
+      # 1️⃣9️⃣ TFSEC scan
       - name: TFSEC scan
         working-directory: infra/terraform
         run: tfsec . --minimum-severity HIGH
