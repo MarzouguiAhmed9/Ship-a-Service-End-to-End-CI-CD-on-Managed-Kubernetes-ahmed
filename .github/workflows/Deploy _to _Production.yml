@@ -81,4 +81,4 @@ jobs:
       - name: Verify deployment
         run: |
           kubectl rollout status deployment/ship-a-service -n default --timeout=120s
-          kubectl get all -n default -l app.kubernetes.io/name=ship-a-service
+          kubectl get all -n default -l app=ship-a-service  # ✅ Matches deployment
