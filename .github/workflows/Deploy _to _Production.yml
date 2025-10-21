@@ -77,7 +77,26 @@ jobs:
             --create-namespace \
             --wait \
             --timeout 5m
-
+      - name: Debug - List all resources
+        run: |
+          echo "=== Helm Release Status ==="
+          helm status ship-a-service -n default
+          
+          echo ""
+          echo "=== All Deployments ==="
+          kubectl get deployments -n default -o wide
+          
+          echo ""
+          echo "=== All Pods ==="
+          kubectl get pods -n default -o wide
+          
+          echo ""
+          echo "=== Describe Deployment (if exists) ==="
+          kubectl describe deployment ship-a-service -n default || echo "Deployment not found"
+          
+          echo ""
+          echo "=== Helm Manifest ==="
+          helm get manifest ship-a-service -n default | grep -A 20 "kind: Deployment"
       - name: Verify deployment
         run: |
           kubectl rollout status deployment/ship-a-service -n default --timeout=120s
