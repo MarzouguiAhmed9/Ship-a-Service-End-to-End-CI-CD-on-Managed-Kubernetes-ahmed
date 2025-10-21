@@ -97,7 +97,13 @@ jobs:
           echo ""
           echo "=== Helm Manifest ==="
           helm get manifest ship-a-service -n default | grep -A 20 "kind: Deployment"
-      - name: Verify deployment
+      - name: Check deployment status
         run: |
-          kubectl rollout status deployment/ship-a-service -n default --timeout=120s
-          kubectl get all -n default -l app=ship-a-service  # ✅ Matches deployment
+          echo "Checking deployment rollout..."
+          kubectl rollout status deployment/ship-a-service-app -n default --timeout=120s
+          
+          echo "Deployment resources:"
+          kubectl get all -n default -l app=app
+          
+          echo "Pod details:"
+          kubectl describe pods -n default -l app=app
