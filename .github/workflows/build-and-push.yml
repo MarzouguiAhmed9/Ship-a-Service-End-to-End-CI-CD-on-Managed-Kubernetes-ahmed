@@ -1,10 +1,15 @@
-name: Build & Push Docker to ECR
+name: Build & Push Docker to ECR (On Merge to main)
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:   # allows manual run
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  security-events: write
 
 jobs:
   build-and-push:
@@ -53,3 +58,124 @@ jobs:
           echo "Pushed images:"
           echo "$IMAGE_URI:main"
           echo "$IMAGE_URI:${GITHUB_SHA::8}"
+
+      # ========================================
+      # 6️⃣ TERRAFORM APPLY
+      # ========================================
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
+
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: infra/terraform
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: infra/terraform
+        run: terraform apply -auto-approve tfplan
+
+      # ========================================
+      # 7️⃣ DEPLOY TO DEV WITH HELM
+      # ========================================
+      - name: Setup kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+          sudo install kubectl /usr/local/bin/
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.13.3'
+
+      - name: Configure kubectl for EKS
+        run: |
+          aws eks update-kubeconfig --name ship-a-service --region $AWS_REGION
+
+      - name: Deploy to Dev with Helm
+        working-directory: charts/app
+        run: |
+          helm upgrade --install ship-a-service . \
+            -f values.dev.yaml \
+            --set image.repository=$IMAGE_URI \
+            --set image.tag=${GITHUB_SHA::8} \
+            --namespace default \
+            --create-namespace \
+            --wait \
+            --timeout 5m
+
+      - name: Verify Deployment
+        run: |
+          kubectl rollout status deployment/ship-a-service-app -n default --timeout=120s
+          kubectl get pods -n default -l app=app
+
+      # ========================================
+      # 8️⃣ POST-DEPLOY SMOKE TEST
+      # ========================================
+      - name: Smoke Test - Health Check
+        run: |
+          echo "🔍 Running smoke test..."
+          
+          # Get service endpoint
+          SERVICE_NAME="ship-a-service-app"
+          
+          # Wait for service to be ready
+          kubectl wait --for=condition=ready pod -l app=app -n default --timeout=120s
+          
+          # Port-forward to access the service
+          kubectl port-forward -n default svc/$SERVICE_NAME 8080:80 &
+          PF_PID=$!
+          
+          # Wait for port-forward to be ready
+          sleep 5
+          
+          # Hit /healthz endpoint
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/healthz || echo "000")
+          
+          # Kill port-forward
+          kill $PF_PID || true
+          
+          # Check response
+          if [ "$RESPONSE" = "200" ]; then
+            echo "✅ Health check passed (HTTP $RESPONSE)"
+          else
+            echo "❌ Health check failed (HTTP $RESPONSE)"
+            exit 1
+          fi
+
+      # ========================================
+      # 9️⃣ GENERATE DEPLOYMENT REPORT
+      # ========================================
+      - name: Generate Deployment Report
+        if: always()
+        run: |
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S')
+          HELM_REV=$(helm list -n default -o json | jq -r '.[0].revision')
+          
+          cat > report.md << EOF
+          # 🚀 Deployment Report
+          
+          **Image**: \`$IMAGE_URI:${GITHUB_SHA::8}\`  
+          **Helm Revision**: \`$HELM_REV\`  
+          **Deployed by**: @${{ github.actor }}  
+          **Environment**: Development  
+          **Time (UTC)**: $TIMESTAMP  
+          **Trigger**: ${{ github.event_name == 'workflow_dispatch' && '🖱️ Manual' || '📝 Push' }}
+          
+          ## ✅ Pipeline Steps
+          - Build & Push: ✅
+          - Terraform Apply: ✅
+          - Helm Deploy: ✅
+          - Smoke Test: ✅
+          
+          ## 🔗 Links
+          - [Workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - [ECR Repository](https://${{ env.AWS_REGION }}.console.aws.amazon.com/ecr/repositories/private/${{ env.AWS_ACCOUNT_ID }}/${{ env.ECR_REPO }})
+          - [EKS Cluster](https://${{ env.AWS_REGION }}.console.aws.amazon.com/eks/home?region=${{ env.AWS_REGION }}#/clusters/ship-a-service)
+          EOF
+          
+          cat report.md >> $GITHUB_STEP_SUMMARY
