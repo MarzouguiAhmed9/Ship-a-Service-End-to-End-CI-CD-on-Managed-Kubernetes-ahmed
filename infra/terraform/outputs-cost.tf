@@ -14,57 +14,57 @@
 locals {
   # AWS pricing for EC2 instances (us-east-1, October 2025)
   instance_pricing = {
-    "t3.micro"  = 0.0104  # $7.59/month
-    "t3.small"  = 0.0208  # $15.18/month
-    "t3.medium" = 0.0416  # $30.37/month
-    "t3.large"  = 0.0832  # $60.74/month
+    "t3.micro"  = 0.0104 # $7.59/month
+    "t3.small"  = 0.0208 # $15.18/month
+    "t3.medium" = 0.0416 # $30.37/month
+    "t3.large"  = 0.0832 # $60.74/month
   }
-  
+
   # Hours in a month (average)
   hours_per_month = 730
-  
+
   # Cost per node per month
   cost_per_node_monthly = lookup(local.instance_pricing, var.node_type, 0.0416) * local.hours_per_month
-  
+
   # Total worker nodes cost
   total_worker_cost = local.cost_per_node_monthly * var.node_desired
-  
+
   # Fixed monthly costs
   fixed_costs = {
     eks_control_plane = 73.00
     ecr_storage       = 0.10
     cloudwatch_logs   = 2.50
     data_transfer     = 1.00
-    nat_gateway       = 0.00  # Not using NAT Gateway
+    nat_gateway       = 0.00 # Not using NAT Gateway
   }
-  
+
   # Sum of fixed costs
   total_fixed_cost = sum(values(local.fixed_costs))
-  
+
   # Total monthly cost
   total_cost_monthly = local.total_fixed_cost + local.total_worker_cost
-  
+
   # Cost per hour
   cost_per_hour = local.total_cost_monthly / local.hours_per_month
-  
+
   # Cost per day
   cost_per_day = local.cost_per_hour * 24
-  
+
   # Cost per week
   cost_per_week = local.cost_per_day * 7
-  
+
   # Annual cost
   cost_per_year = local.total_cost_monthly * 12
-  
+
   # Savings calculations
   savings_scale_to_1 = local.cost_per_node_monthly * (var.node_desired - 1)
-  savings_t3_small = var.node_type == "t3.medium" ? (local.instance_pricing["t3.medium"] - local.instance_pricing["t3.small"]) * local.hours_per_month * var.node_desired : 0
-  savings_destroy = local.total_cost_monthly
-  
+  savings_t3_small   = var.node_type == "t3.medium" ? (local.instance_pricing["t3.medium"] - local.instance_pricing["t3.small"]) * local.hours_per_month * var.node_desired : 0
+  savings_destroy    = local.total_cost_monthly
+
   # Budget status
-  budget_limit = 150.00
+  budget_limit        = 150.00
   budget_used_percent = (local.total_cost_monthly / local.budget_limit) * 100
-  budget_status = local.total_cost_monthly > local.budget_limit ? "⚠️  OVER BUDGET" : local.total_cost_monthly > (local.budget_limit * 0.8) ? "⚠️  WARNING" : "✅ OK"
+  budget_status       = local.total_cost_monthly > local.budget_limit ? "⚠️  OVER BUDGET" : local.total_cost_monthly > (local.budget_limit * 0.8) ? "⚠️  WARNING" : "✅ OK"
 }
 
 # ============================================================================
@@ -78,7 +78,7 @@ output "monthly_cost_estimate" {
     infrastructure = "Ship-a-Service EKS Cluster"
     owner          = "MarzouguiAhmed9"
     generated_at   = "2025-10-18 19:26:30 UTC"
-    
+
     # Configuration
     config = {
       cluster_name = var.cluster_name
@@ -87,7 +87,7 @@ output "monthly_cost_estimate" {
       node_type    = var.node_type
       node_count   = var.node_desired
     }
-    
+
     # Cost breakdown
     breakdown = {
       eks_control_plane = format("$%.2f", local.fixed_costs.eks_control_plane)
@@ -98,7 +98,7 @@ output "monthly_cost_estimate" {
       separator         = "─────────────────────────────"
       total             = format("$%.2f/month", local.total_cost_monthly)
     }
-    
+
     # Time-based costs
     time_periods = {
       hourly  = format("$%.4f", local.cost_per_hour)
@@ -107,22 +107,22 @@ output "monthly_cost_estimate" {
       monthly = format("$%.2f", local.total_cost_monthly)
       yearly  = format("$%.2f", local.cost_per_year)
     }
-    
+
     # Budget tracking
     budget = {
-      monthly_limit  = format("$%.2f", local.budget_limit)
-      current_spend  = format("$%.2f", local.total_cost_monthly)
-      percentage     = format("%.1f%%", local.budget_used_percent)
-      remaining      = format("$%.2f", local.budget_limit - local.total_cost_monthly)
-      status         = local.budget_status
+      monthly_limit = format("$%.2f", local.budget_limit)
+      current_spend = format("$%.2f", local.total_cost_monthly)
+      percentage    = format("%.1f%%", local.budget_used_percent)
+      remaining     = format("$%.2f", local.budget_limit - local.total_cost_monthly)
+      status        = local.budget_status
     }
-    
+
     # Potential savings
     savings = {
-      scale_to_1_node  = var.node_desired > 1 ? format("Save $%.2f/month", local.savings_scale_to_1) : "N/A (already 1 node)"
-      use_t3_small     = local.savings_t3_small > 0 ? format("Save $%.2f/month", local.savings_t3_small) : "✓ Already optimized"
-      destroy_all      = format("Save $%.2f/month", local.savings_destroy)
-      spot_instances   = "Save ~70% (not implemented)"
+      scale_to_1_node = var.node_desired > 1 ? format("Save $%.2f/month", local.savings_scale_to_1) : "N/A (already 1 node)"
+      use_t3_small    = local.savings_t3_small > 0 ? format("Save $%.2f/month", local.savings_t3_small) : "✓ Already optimized"
+      destroy_all     = format("Save $%.2f/month", local.savings_destroy)
+      spot_instances  = "Save ~70% (not implemented)"
     }
   }
 }
@@ -133,7 +133,7 @@ output "monthly_cost_estimate" {
 
 output "cost_report" {
   description = "📊 Formatted cost report for documentation"
-  value = <<-EOT
+  value       = <<-EOT
   
   ╔══════════════════════════════════════════════════════════════════════╗
   ║                 SHIP-A-SERVICE COST REPORT                           ║
@@ -294,14 +294,14 @@ output "cost_comparison" {
 output "cost_metadata" {
   description = "Cost calculation metadata"
   value = {
-    pricing_date        = "2025-10-18"
-    pricing_region      = var.region
-    pricing_source      = "AWS Pricing Calculator"
-    calculation_method  = "730 hours/month average"
-    currency            = "USD"
-    includes_tax        = false
-    last_updated_by     = "MarzouguiAhmed9"
-    last_updated_at     = "2025-10-18 19:26:30 UTC"
-    terraform_version   = ">= 1.5.0"
+    pricing_date       = "2025-10-18"
+    pricing_region     = var.region
+    pricing_source     = "AWS Pricing Calculator"
+    calculation_method = "730 hours/month average"
+    currency           = "USD"
+    includes_tax       = false
+    last_updated_by    = "MarzouguiAhmed9"
+    last_updated_at    = "2025-10-18 19:26:30 UTC"
+    terraform_version  = ">= 1.5.0"
   }
 }
