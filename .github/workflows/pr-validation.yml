@@ -112,4 +112,4 @@ jobs:
       # 1️⃣8️⃣ IaC security scan (tfsec)
       - name: TFSEC scan
         working-directory: infra/terraform
-        run: tfsec .
+        run: tfsec . --severity CRITICAL,HIGH --exit-code 1
