@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
+  workflow_dispatch: # allows manual run
 
 jobs:
   build-and-deploy:
@@ -16,19 +16,18 @@ jobs:
       IMAGE_URI: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/ship-a-service
 
     steps:
-      # 1️⃣ Checkout code
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Configure AWS credentials (OIDC)
+      # 2️⃣ Configure AWS credentials via OIDC
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ship-a-service-github-actions-role
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-          audience: sts.amazonaws.com
 
-      # 3️⃣ Login to Amazon ECR
+      # 3️⃣ Login to ECR
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
@@ -47,16 +46,16 @@ jobs:
           aws eks update-kubeconfig --name ship-a-service --region $AWS_REGION
 
       # 6️⃣ Deploy with Helm
-      - name: Deploy using Helm
+      - name: Helm deploy to dev
         working-directory: charts/app
         run: |
           helm upgrade --install ship-a-service . \
             -f values.dev.yaml \
             --set image.repository=$IMAGE_URI \
             --set image.tag=${GITHUB_SHA::8} \
-            --wait --timeout 10m
+            --wait --timeout 5m
 
       # 7️⃣ Verify deployment health
-      - name: Verify rollout success
+      - name: Verify deployment health
         run: |
-          kubectl rollout status deployment/ship-a-service --timeout=90s
+          kubectl rollout status deployment/ship-a-service --timeout=60s
