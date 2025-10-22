@@ -30,6 +30,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ship-a-service-github-actions-role
+
           role-session-name: GitHubActions-${{ github.run_id }}
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
