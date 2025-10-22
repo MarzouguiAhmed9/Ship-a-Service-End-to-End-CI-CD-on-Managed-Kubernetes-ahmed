@@ -4,7 +4,7 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:   # <-- enables manual run
+  workflow_dispatch:   # enables manual run
 
 jobs:
   validate:
@@ -60,6 +60,8 @@ jobs:
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # 9️⃣ Setup Terraform
       - name: Setup Terraform
