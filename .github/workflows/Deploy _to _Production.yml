@@ -67,7 +67,7 @@ jobs:
         working-directory: charts/app
         run: |
           helm upgrade --install ship-a-service . \
-            -f values.dev.yaml \
+            -f values.prod.yaml \
             --set image.repository=${{ env.IMAGE_URI }} \
             --set image.tag=${GITHUB_SHA::8} \
             --namespace default \
