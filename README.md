@@ -60,8 +60,7 @@ Pousser/puller les images dans ECR.
 Déployer sur le cluster EKS (via une policy personnalisée).
 
 
-
-### 6. Connect to Cluster
+Connect to Cluster
 ```bash
 # Configure kubectl
 aws eks update-kubeconfig \
@@ -372,7 +371,7 @@ CI pipelines authenticate to AWS using OpenID Connect (OIDC). No long-lived cred
 Cloud-native secret storage:
 Sensitive data like AWS Account ID is stored in AWS SSM Parameter Store.
 
-### Phase 6: Observability
+### Phase 7: Observability
 
 App metrics:
 
