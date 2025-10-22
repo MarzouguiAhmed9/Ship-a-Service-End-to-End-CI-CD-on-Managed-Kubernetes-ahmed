@@ -18,7 +18,6 @@ jobs:
 
     env:
       AWS_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       ECR_REPO: ship-a-service
       IMAGE_URI: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_DEFAULT_REGION }}.amazonaws.com/ship-a-service
 
@@ -35,41 +34,51 @@ jobs:
           role-session-name: GitHubActions-${{ github.run_id }}
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
-      # 3️⃣ Verify AWS credentials
+      # 3️⃣ Fetch AWS Account ID from Secrets Manager
+      - name: Get AWS Account ID from Secrets Manager
+        id: get_secret
+        run: |
+          export AWS_ACCOUNT_ID=$(aws secretsmanager get-secret-value \
+            --secret-id github-aws-account-id \
+            --query SecretString \
+            --output text)
+          echo "AWS_ACCOUNT_ID=$AWS_ACCOUNT_ID" >> $GITHUB_ENV
+
+      # 4️⃣ Verify AWS credentials
       - name: Verify AWS credentials
         run: |
           aws sts get-caller-identity
           echo "✅ AWS authentication successful"
 
-      # 4️⃣ Login to Amazon ECR
+      # 5️⃣ Login to Amazon ECR
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 5️⃣ Build Docker image
+      # 6️⃣ Build Docker image
       - name: Build Docker image
         working-directory: app/src
         run: |
           docker build -t $IMAGE_URI:main .
           docker tag $IMAGE_URI:main $IMAGE_URI:${GITHUB_SHA::8}
 
-      # 6️⃣ Push Docker image
+      # 7️⃣ Push Docker image
       - name: Push Docker image
         run: |
           docker push $IMAGE_URI:main
           docker push $IMAGE_URI:${GITHUB_SHA::8}
 
-      # 7️⃣ Configure kubectl for EKS
+      # 8️⃣ Configure kubectl for EKS
       - name: Configure kubectl for EKS
         run: |
           aws eks update-kubeconfig --name ship-a-service --region $AWS_REGION
 
-      # 8️⃣ Setup Helm
+      # 9️⃣ Setup Helm
       - name: Setup Helm
         uses: azure/setup-helm@v4
         with:
           version: 'v3.13.3'
 
-      # 9️⃣ Helm deploy with automated rollback
+      # 🔟 Helm deploy with automated rollback
       - name: Helm deploy
         working-directory: charts/app
         run: |
@@ -83,7 +92,7 @@ jobs:
             --atomic \
             --timeout 5m
 
-      # 🔍 Debug and inspect deployment
+      # 🔹 Debug and inspect deployment
       - name: Debug - List all resources
         run: |
           echo "=== Helm Release Status ==="
@@ -110,11 +119,7 @@ jobs:
         run: |
           echo "Checking deployment rollout..."
           kubectl rollout status deployment/ship-a-service-app -n default --timeout=120s
-
-          echo "Deployment resources:"
           kubectl get all -n default -l app=app
-
-          echo "Pod details:"
           kubectl describe pods -n default -l app=app
 
       # ========================================
