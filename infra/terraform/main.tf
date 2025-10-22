@@ -202,23 +202,14 @@ resource "aws_ecr_lifecycle_policy" "app" {
 # ============================================================================
 # IAM ROLES FOR CI/CD (GitHub Actions OIDC)
 # ============================================================================
-resource "aws_iam_openid_connect_provider" "github" {
-  url = "https://token.actions.githubusercontent.com"
-  
-  client_id_list = ["sts.amazonaws.com"]
 
-  thumbprint_list = [
-    "6938fd4d98bab03faadb97b34396831e3780aea1"
-  ]
-
-  tags = {
-    Project = var.cluster_name
-    Env     = var.env
-  }
-}
 
 # GitHub Actions OIDC provider (must exist in your AWS account)
-
+resource "aws_iam_openid_connect_provider" "github" {
+  url = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+}
 # IAM role for GitHub Actions
 resource "aws_iam_role" "github_actions_role" {
   name = "${var.cluster_name}-github-actions-role"
@@ -239,8 +230,7 @@ resource "aws_iam_role" "github_actions_role" {
           }
           StringLike = {
             # Allow any branch/tag in your repository
-            "token.actions.githubusercontent.com:sub" = "repo:MarzouguiAhmed9/ship-a-service-end-to-end-ci-cd-on-managed-kubernetes:*"
-          }
+            "token.actions.githubusercontent.com:sub" = "repo:MarzouguiAhmed9/Ship-a-Service-End-to-End-CI-CD-on-Managed-Kubernetes-ahmed:*"          }
         }
       }
     ]
