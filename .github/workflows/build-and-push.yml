@@ -129,7 +129,7 @@ jobs:
           kubectl wait --for=condition=ready pod -l app=app -n default --timeout=120s
           
           # Port-forward to access the service
-          kubectl port-forward -n default svc/$SERVICE_NAME 8080:80 &
+          kubectl port-forward -n default svc/$SERVICE_NAME 8080:8080 &
           PF_PID=$!
           
           # Wait for port-forward to be ready
