@@ -1,30 +1,52 @@
-SECURITY.md – Ship-a-Service
+Security Overview – Ship-a-Service
 1. IAM Roles & Policies
 
-Terraform Role: Used to create infrastructure (VPC, subnets, EKS, ECR).
+GitHub Actions Role
 
-CI/CD Role (GitLab Runner): Can push to ECR and deploy to EKS only.
+Created via OIDC; no long-lived keys stored in GitHub.
 
-Role uses OIDC, so GitLab can assume it temporarily.
+Least-privilege principle: only allows necessary actions:
 
-2. Least-Privilege
+Push/pull images in ECR.
 
-CI/CD runner does not have full AWS access.
+Deploy and describe EKS cluster.
 
-Only allows actions needed: push images, deploy apps.
+Read/write required SSM parameters.
 
-Limits risk if credentials are leaked.
+Roles are scoped to resources, e.g., repo-specific ECR, cluster-limited access.
 
-3. Secrets
+Node IAM Roles
 
-No hard-coded AWS keys in GitLab.
+Nodes have only permissions needed for workloads (e.g., read ConfigMaps, push logs).
 
-Use OIDC or short-lived credentials.
+2. Secrets & Sensitive Data
 
-Rotate roles/keys regularly.
+AWS Account ID and other sensitive info stored in SSM Parameter Store.
 
-4. Optional Security Checks
+CI workflows fetch secrets at runtime; no secrets hardcoded in code or GitHub.
 
-Sign images (Cosign) to ensure trust.
+Rotation: periodic review + automatic regeneration of keys if used.
 
-Scan images and Terraform code for vulnerabilities.
+3. Supply-Chain Security
+
+SBOM (Software Bill of Materials) generated for every build.
+
+Image scanning: Trivy used to detect vulnerabilities (CRITICAL/HIGH fail pipeline).
+
+IaC scanning: tfsec scans Terraform templates for security issues.
+
+Provenance / Integrity: optional bonus: cosign can be used to sign images and verify authenticity.
+
+4. Runtime Security
+
+Pods run as non-root users.
+
+Liveness/readiness probes prevent unhealthy pods from serving traffic.
+
+Rolling updates with automated rollback ensure no broken deployment reaches production.
+
+5. Observability for Security
+
+CloudWatch monitors CPU, memory, and network.
+
+Fluent Bit ships logs to CloudWatch Logs for audit and forensic needs.

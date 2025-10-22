@@ -1,14 +1,10 @@
 # Ship-a-Service: End-to-End CI/CD on Managed Kubernetes
 Launch EKS Cluster with Terraform
 1️⃣ Set AWS credentials
-
 Export your AWS keys and region:
 export AWS_ACCESS_KEY_ID=<your_access_key>
 export AWS_SECRET_ACCESS_KEY=<your_secret_key>
 export AWS_DEFAULT_REGION=<your_region>
-
-
-
 
 
 Create key if missing:
@@ -16,7 +12,6 @@ aws ec2 create-key-pair --key-name ahmedkey --query 'KeyMaterial' --output text 
 chmod 400 ahmedkey.pem
 
 
-Update Terraform variable ssh_key_name = "ahmedkey"
 
 3️⃣ Initialize Terraform
 terraform init
@@ -26,171 +21,160 @@ Check that Terraform plans to create your VPC, subnets, EKS cluster, node groups
 5️⃣ Apply deployment
 terraform apply
 
-
-Type yes when prompted.
-
-Terraform will create all resources, including node group using your SSH key.
-**Author:** Ahmed Marzougui (@MarzouguiAhmed9)  
-**Challenge:** DevOps/Technical Writer Position  
-**Status:** Phase 1 Complete - Infrastructure Provisioning ✅
-
----
-
-## 📋 Overview
-
-This project demonstrates production-ready infrastructure provisioning for a Kubernetes-based microservices platform on AWS EKS, showcasing infrastructure-as-code best practices and technical documentation skills.
-
-**Goal:** Build complete CI/CD pipeline: `commit → container → security checks → Helm deploy → production`
-
-**Current Status:** Infrastructure foundation complete (Phase 1 of 7)
-
----
-
 ## 🎯 What's Been Built (Phase 1)
 
-### Infrastructure Components
+Infrastructure réseau
 
-✅ **Network Layer**
-- Custom VPC (10.0.0.0/16)
-- 2 Public subnets across different Availability Zones
-- Multi-AZ high availability setup
+Crée un VPC avec DNS activé.
 
-✅ **Kubernetes Cluster**
-- AWS EKS v1.28 managed cluster
-- Auto-scaling node group (1-3 nodes)
-- t3.medium instances (2 vCPU, 4GB RAM)
+Ajoute une Internet Gateway pour le trafic sortant.
 
-✅ **Container Registry**
-- Private ECR repository
-- Image scanning enabled
-- Mutable tags for development
+Définit une route publique (0.0.0.0/0).
 
-✅ **IAM & Security**
-- EKS cluster role with minimal permissions
-- Node group IAM role
-- GitLab CI OIDC integration prepared
+Crée 2 subnets publics dans deux zones de disponibilité pour HA.
 
----
+Associe les subnets à la route table.
+
+EKS (Kubernetes)
+
+Déploie un cluster EKS version 1.28.
+
+Crée un managed node group avec un type d’instance, nombre min/max de nœuds, et SSH key.
+
+Les nodes sont tagués et répartis sur les 2 subnets pour haute disponibilité.
+
+ECR (Docker registry)
+
+Crée un repository ECR ship-a-service avec scan d’image à la push et AES256 pour le stockage.
+
+Politique de cycle de vie pour garder les 10 dernières images.
+
+IAM & GitHub Actions (CI/CD)
+
+Crée un OIDC provider pour GitHub Actions.
+
+Crée un role IAM pour GitHub Actions avec permissions pour :
+
+Pousser/puller les images dans ECR.
+
+Déployer sur le cluster EKS (via une policy personnalisée).
 
 ## 🏗️ Architecture Diagram
 
 ```
-┌─────────────────────────── AWS Cloud ───────────────────────────┐
-│                                                                 │
-│  ┌─────────────────┐      ┌───────────────────────────────────┐ │
-│  │                 │      │           VPC (10.0.0.0/16)       │ │
-│  │  CI/CD Pipeline │      │ ┌─────────┐        ┌─────────┐    │ │
-│  │  ┌───────────┐  │      │ │Subnet A │        │Subnet B │    │ │
-│  │  │  GitHub   │  │      │ │  AZ-a  │        │  AZ-b  │    │ │
-│  │  │  Actions  │  │      │ └────┬───┘        └────┬───┘    │ │
-│  │  └─────┬─────┘  │      │      │                 │        │ │
-│  │        │        │      │ ┌────┴─────────────────┴─────┐  │ │
-│  │        │ OIDC   │      │ │                            │  │ │
-│  │        │ Auth   │      │ │     EKS Cluster (1.28)     │  │ │
-│  │        │        │      │ │                            │  │ │
-│  │  ┌─────▼─────┐  │      │ │  ┌──────────┐ ┌──────────┐ │  │ │
-│  │  │ AWS IAM   │  │      │ │  │Node Group│ │Node Group│ │  │ │
-│  │  │ Role      │──┼──────┼─┼─▶│ t3.medium│ │ t3.medium│ │  │ │
-│  │  └───────────┘  │      │ │  └──────────┘ └──────────┘ │  │ │
-│  │                 │      │ │                            │  │ │
-│  └─────────┬───────┘      │ └────────────────▲───────────┘  │ │
-│            │              │                  │              │ │
-│  ┌─────────▼───────┐      └──────────────────┼──────────────┘ │
-│  │                 │                         │                │
-│  │  ┌───────────┐  │      ┌─────────────┐    │                │
-│  │  │   ECR     │  │      │             │    │                │
-│  │  │ Repository│◄─┼──────┤ S3 Backend  │    │                │
-│  │  │ship-a-    │  │      │ tfstate     │    │                │
-│  │  │service    │──┼──────┼───────────▶ │    │                │
-│  │  └───────────┘  │      │             │    │                │
-│  │                 │      └─────────────┘    │                │
-│  └─────────────────┘                         │                │
-│                                              │                │
-└──────────────────────────────────────────────┼────────────────┘
-                                               │
-                  Pull Images                  │
-                       ┌─────────────────┐     │
-                       │                 │     │
-                       │  Application    │◄────┘
-                       │  Containers     │
-                       │                 │
-                       └─────────────────┘
+# Ship-a-Service: End-to-End CI/CD on Managed Kubernetes
+
+## 🏗️ Architecture Diagram
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│                                    AWS Cloud                                         │
+│                                                                                      │
+│  ┌────────────────────────────────┐      ┌────────────────────────────────────────┐ │
+│  │                                │      │                                        │ │
+│  │      CI/CD Pipeline            │      │        VPC (10.0.0.0/16)              │ │
+│  │                                │      │                                        │ │
+│  │  ┌──────────────────────────┐  │      │  ┌───────────────────────────────────┐ │ │
+│  │  │                          │  │      │  │      Internet Gateway            │ │ │
+│  │  │  GitHub Repository       │  │      │  │      (Public Access)             │ │ │
+│  │  │  MarzouguiAhmed9/        │  │      │  └─────────────┬─────────────────────┘ │ │
+│  │  │  Ship-a-Service          │  │      │                │                       │ │
+│  │  │                          │  │      │  ┌─────────────▼─────────────────────┐ │ │
+│  │  └────────┬─────────────────┘  │      │  │    Public Route Table            │ │ │
+│  │           │                    │      │  │    Route: 0.0.0.0/0 → IGW        │ │ │
+│  │           │ Trigger            │      │  └──────┬──────────────────┬────────┘ │ │
+│  │           │                    │      │         │                  │          │ │
+│  │  ┌────────▼─────────────────┐  │      │  ┌──────▼────────┐  ┌─────▼────────┐ │ │
+│  │  │                          │  │      │  │               │  │              │ │ │
+│  │  │   GitHub Actions         │  │      │  │  Subnet A     │  │  Subnet B    │ │ │
+│  │  │   Workflow               │  │      │  │  (us-east-1a) │  │  (us-east-1b)│ │ │
+│  │  │                          │  │      │  │  10.0.1.0/24  │  │  10.0.2.0/24 │ │ │
+│  │  │  1. Build & Test         │  │      │  │               │  │              │ │ │
+│  │  │  2. Build Docker Image   │  │      │  │  ┌─────────┐  │  │  ┌─────────┐ │ │ │
+│  │  │  3. Push to ECR          │  │      │  │  │  EKS    │  │  │  │  EKS    │ │ │
+│  │  │  4. Deploy to EKS        │  │      │  │  │  Worker │  │  │  │  Worker │ │ │
+│  │  │                          │  │      │  │  │  Nodes  │  │  │  │  Nodes  │ │ │
+│  │  └────┬──────────────────┬──┘  │      │  │  │         │  │  │  │         │ │ │
+│  │       │                  │     │      │  │  └────┬────┘  │  │  └────┬────┘ │ │
+│  │       │ OIDC Auth        │     │      │  └───────┼───────┘  └───────┼──────┘ │ │
+│  │       │                  │     │      │          │                  │        │ │
+│  │  ┌────▼──────────────────▼───┐ │      │  ┌───────▼──────────────────▼──────┐ │ │
+│  │  │                          │ │      │  │                                  │ │ │
+│  │  │  GitHub OIDC Provider    │ │      │  │     EKS Control Plane            │ │ │
+│  │  │  token.actions.          │ │      │  │     Kubernetes v1.28             │ │ │
+│  │  │  githubusercontent.com    │ │      │  │                                  │ │ │
+│  │  │                          │ │      │  │  - API Server                    │ │ │
+│  │  │  Thumbprint:             │ │      │  │  - Scheduler                     │ │ │
+│  │  │  6938fd4d98ba...         │ │      │  │  - Controller Manager            │ │ │
+│  │  │                          │ │      │  │                                  │ │ │
+│  │  └────────┬─────────────────┘ │      │  │  Tags:                           │ │ │
+│  │           │                   │      │  │  kubernetes.io/cluster/shared    │ │ │
+│  │           │ Assume Role       │      │  │  kubernetes.io/role/elb          │ │ │
+│  │           │                   │      │  │                                  │ │ │
+│  │  ┌────────▼─────────────────┐ │      │  └──────────────────────────────────┘ │ │
+│  │  │                          │ │      │                                        │ │
+│  │  │  IAM Role                │ │      └────────────────────────────────────────┘ │
+│  │  │  github-actions-role     │ │                                                 │
+│  │  │                          │ │                                                 │
+│  │  │  Permissions:            │─┼─┐                                               │
+│  │  │  ✓ ECR PowerUser         │ │ │                                               │
+│  │  │  ✓ EKS Describe Cluster  │ │ │   ┌───────────────────────────────────────┐ │
+│  │  │  ✓ EKS Access K8s API    │ │ │   │                                       │ │
+│  │  │                          │ │ │   │   Amazon ECR Repository               │ │
+│  │  │  Condition:              │ │ │   │   ship-a-service                      │ │
+│  │  │  repo: MarzouguiAhmed9/  │ │ │   │                                       │ │
+│  │  │  Ship-a-Service-...:*    │ │ │   │   Features:                           │ │
+│  │  │                          │ │ └──▶│   🔒 AES256 Encryption                │ │
+│  │  │  Tags:                   │ │     │   🔍 Scan on Push                     │ │
+│  │  │  TTL: 7d                 │ │     │   ♻️  Lifecycle: Keep 10 images       │ │
+│  │  │                          │ │     │   📦 Image Tag: MUTABLE               │ │
+│  │  └──────────────────────────┘ │     │                                       │ │
+│  │                                │     │   Latest Images:                      │ │
+│  └────────────────────────────────┘     │   - ship-a-service:latest             │ │
+│                                         │   - ship-a-service:v1.2.3             │ │
+│                                         │   - ship-a-service:sha-abc123         │ │
+│                                         │                                       │ │
+│                                         └────────────┬──────────────────────────┘ │
+│                                                      │                            │
+│                                                      │ Pull Images                │
+│                                                      │                            │
+└──────────────────────────────────────────────────────┼────────────────────────────┘
+                                                       │
+                                                       │
+                                   ┌───────────────────▼────────────────────┐
+                                   │                                        │
+                                   │     Application Containers             │
+                                   │                                        │
+                                   │  ┌──────────────┐  ┌──────────────┐   │
+                                   │  │   Pod 1      │  │   Pod 2      │   │
+                                   │  │   Subnet A   │  │   Subnet B   │   │
+                                   │  │              │  │              │   │
+                                   │  │   ┌──────┐   │  │   ┌──────┐   │   │
+                                   │  │   │ App  │   │  │   │ App  │   │   │
+                                   │  │   │      │   │  │   │      │   │   │
+                                   │  │   └──────┘   │  │   └──────┘   │   │
+                                   │  │              │  │              │   │
+                                   │  └──────────────┘  └──────────────┘   │
+                                   │                                        │
+                                   │  Load Balanced across AZs              │
+                                   │  Auto-scaling enabled                  │
+                                   │                                        │
+                                   └────────────────────────────────────────┘
+                                                       │
+                                                       │
+                                                  ┌────▼─────┐
+                                                  │          │
+                                                  │  👥 Users│
+                                                  │  (Public)│
+                                                  │          │
+                                                  └──────────┘
 ```
 
 ---
 
-## 📦 Prerequisites
-
-### Required Tools
-
-| Tool | Version | Purpose |
-|------|---------|---------|
-| Terraform | ≥ 1.5, < 2.0 | Infrastructure provisioning |
-| AWS CLI | ≥ 2.0 | AWS authentication |
-| kubectl | ≥ 1.28 | Kubernetes management |
 
 
-
-## 🚀 Quick Start
-
-### 1. Clone Repository
-```bash
-git clone https://github.com/MarzouguiAhmed9/ship-a-service-end-to-end-ci-cd-on-managed-kubernetes.git
-cd ship-a-service-end-to-end-ci-cd-on-managed-kubernetes/infra/terraform
-```
-
-### 2. Configure AWS Credentials
-```bash
-export AWS_ACCESS_KEY_ID="your_access_key"
-export AWS_SECRET_ACCESS_KEY="your_secret_key"
-export AWS_DEFAULT_REGION="us-east-1"
-
-# Verify
-aws sts get-caller-identity
-```
-
-### 3. Initialize Terraform
-```bash
-terraform init
-```
-
-### 4. Review Configuration
-
-**Create `terraform.tfvars`:**
-```hcl
-# Cluster
-cluster_name = "ship-a-service"
-region       = "us-east-1"
-
-# Network
-vpc_cidr      = "10.0.0.0/16"
-subnet_a_cidr = "10.0.1.0/24"
-subnet_b_cidr = "10.0.2.0/24"
-az_a          = "us-east-1a"
-az_b          = "us-east-1b"
-
-# Nodes
-node_desired  = 2
-node_min      = 1
-node_max      = 3
-node_type     = "t3.medium"
-
-# SSH
-ssh_key_name  = "ahmedkey"
-
-# Environment
-env = "dev"
-```
-
-### 5. Deploy Infrastructure
-```bash
-# Preview changes
-terraform plan
-
-# Apply (15-20 minutes)
-terraform apply
-# Type: yes
-```
+-
 
 ### 6. Connect to Cluster
 ```bash
@@ -212,493 +196,328 @@ ip-10-0-2-xxx.ec2.internal    Ready    <none>   5m    v1.28.x
 
 ---
 
-## 📁 Terraform Structure
 
-```
-infra/terraform/
-├── main.tf          # VPC, subnets, EKS cluster, ECR, IAM roles
-├── variables.tf     # Input variables
-├── outputs.tf       # Cluster endpoint, ECR URL
-├── versions.tf      # Provider versions (AWS ~5.0)
-└── terraform.tfvars # Your configuration values (not committed)
-```
 
-### Key Resources Created
-
-**Network (3 resources):**
-- `aws_vpc.main` - VPC with CIDR 10.0.0.0/16
-- `aws_subnet.subnet_a` - Public subnet in AZ-A
-- `aws_subnet.subnet_b` - Public subnet in AZ-B
-
-**EKS (via module - ~20 resources):**
-- EKS control plane
-- Managed node group with auto-scaling
-- Security groups
-- IAM roles and policies
-
-**Registry (1 resource):**
-- `aws_ecr_repository.app` - Private container registry
-
-**IAM (2 resources):**
-- `aws_iam_role.gitlab_ci_role` - GitLab CI OIDC role
-- Policy attachments for ECR and EKS access
-
----
 
 ## 📊 Outputs
 
-After deployment, retrieve important values:
+1️⃣ Infos techniques utiles pour déploiement
 
-```bash
-# Get all outputs
-terraform output
+registry_url → URL du ECR pour push/pull les images Docker.
 
-# ECR repository URL
-terraform output ecr_repository_url
-# Output: xxxxx.dkr.ecr.us-east-1.amazonaws.com/ship-a-service
+cluster_name → nom du cluster EKS.
 
-# Cluster name
-terraform output cluster_name
-# Output: ship-a-service
+cluster_endpoint → endpoint API du cluster pour kubectl.
 
-# Cluster endpoint
-terraform output cluster_endpoint
-# Output: https://xxxxx.eks.amazonaws.com
-```
+cluster_certificate_authority_data → certificat pour sécuriser l’accès Kubernetes.
 
----
+kubeconfig_yaml → fichier kubeconfig complet prêt à copier dans ~/.kube/config.
 
-## 🔐 Security Features
+github_actions_role_arn → ARN du role IAM GitHub Actions pour CI/CD.
 
-### IAM Least Privilege
+Ces outputs permettent à ton équipe ou à GitHub Actions d’interagir avec le cluster et le registry facilement.
 
-**EKS Cluster Role:**
-```
-Managed Policies:
-  ✓ AmazonEKSClusterPolicy (AWS managed)
-  ✓ AmazonEKSVPCResourceController (AWS managed)
-```
+2️⃣ Estimation et suivi des coûts
 
-**Node Group Role:**
-```
-Managed Policies:
-  ✓ AmazonEKSWorkerNodePolicy
-  ✓ AmazonEKS_CNI_Policy
-  ✓ AmazonEC2ContainerRegistryReadOnly
-```
+monthly_cost_estimate → détail complet par mois : coût control plane, nodes, ECR, logs, transfert de données, etc.
 
-**GitLab CI Role (OIDC):**
-```
-Assume Role: Web Identity via GitLab OIDC
-Permissions:
-  ✓ AmazonEC2ContainerRegistryPowerUser (push images)
-  ✓ AmazonEKSClusterPolicy (deploy to cluster)
-  
-Condition: project_path:your-group/your-project:*
-```
+cost_report → version formatée et lisible (tableau avec conseils d’optimisation et budget).
 
-### Encryption
-- ✅ ECR images encrypted at rest (AES-256)
-- ✅ EKS control plane encrypted by default
-- ✅ No hardcoded credentials (uses AWS IAM)
+total_monthly_cost, total_daily_cost, total_hourly_cost → résumé rapide.
 
----
+budget_status → indique si tu es dans le budget (OK, WARNING, OVER BUDGET).
 
-## 💰 Cost Estimate
+cost_comparison → comparaison entre différentes configurations (minimal/dev/prod).
 
-| Resource | Quantity | Cost/Hour | Monthly Cost |
-|----------|----------|-----------|--------------|
-| EKS Control Plane | 1 | $0.10 | $73.00 |
-| t3.medium nodes | 2 | $0.0416 | $59.90 |
-| ECR Storage | <1 GB | - | $0.10 |
-| **TOTAL** | | | **~$133/month** |
+cost_metadata → infos sur la méthode de calcul, source, date, etc.
 
-### Cost Optimization
-
-**For Development:**
-```hcl
-# Scale down to 1 node
-node_desired = 1
-node_min     = 1
-node_max     = 1
-
-# Use smaller instance
-node_type = "t3.small"  # $0.0208/hour (~50% savings)
-
-# Estimated savings: ~$30/month
-```
-
-**Note:** EKS control plane ($73/month) is NOT free tier eligible.
-
----
-
-## 🔧 Troubleshooting
-
-### Issue: Key Pair Not Found
-```
-Error: The key pair 'ahmedkey' does not exist
-```
-
-**Fix:**
-```bash
-aws ec2 create-key-pair --key-name ahmedkey \
-  --query 'KeyMaterial' --output text > ~/.ssh/ahmedkey.pem
-chmod 400 ~/.ssh/ahmedkey.pem
-terraform apply
-```
-
-### Issue: Provider Version Error
-```
-Error: Unsupported block type "elastic_gpu_specifications"
-```
-
-**Fix:**
-```bash
-rm -rf .terraform .terraform.lock.hcl
-terraform init -upgrade
-```
-
-### Issue: kubectl Connection Failed
-```
-Error: Unable to connect to the server
-```
-
-**Fix:**
-```bash
-aws eks update-kubeconfig --name ship-a-service --region us-east-1
-kubectl get svc
-```
-
-### Useful Commands
-
-```bash
-# Check Terraform state
-terraform state list
-terraform show
-
-# AWS verification
-aws eks describe-cluster --name ship-a-service
-aws ecr describe-repositories
-
-# Kubernetes checks
-kubectl get nodes
-kubectl get pods --all-namespaces
-kubectl cluster-info
-```
-
----
-
-## 🧹 Cleanup
-
-### Destroy Infrastructure
-
-```bash
-cd infra/terraform
-
-# Preview
-terraform plan -destroy
-
-# Destroy (10-15 minutes)
-terraform destroy
-# Type: yes
-```
-
-### Manual Cleanup (if needed)
-
-```bash
-# Delete ECR images first
-aws ecr batch-delete-image \
-  --repository-name ship-a-service \
-  --image-ids imageTag=latest
-
-# Delete stuck security groups
-aws ec2 describe-security-groups \
-  --filters "Name=vpc-id,Values=<vpc-id>" \
-  --query 'SecurityGroups[*].GroupId' \
-  --output text | xargs -I {} aws ec2 delete-security-group --group-id {}
-```
-
----
-
-
-## 💰 Cost Guardrails
-terraform refresh && terraform output cost_report
-
-## 📚 Project Structure
-
-```
-ship-a-service-end-to-end-ci-cd-on-managed-kubernetes/
-│
-├── infra/terraform/          ✅ COMPLETE
-│   ├── main.tf              # Infrastructure definitions
-│   ├── variables.tf         # Input variables
-│   ├── outputs.tf           # Output values
-│   ├── versions.tf          # Provider versions
-│   └── terraform.tfvars     # Configuration (gitignored)
-│
-├── app/                      ⏳ NEXT PHASE
-│   ├── src/server.py        # HTTP service
-│   ├── tests/               # Unit tests
-│   ├── Dockerfile           # Multi-stage build
-│   └── README.md
-│
-├── charts/app/               ⏳ FUTURE
-│   ├── Chart.yaml
-│   ├── values.dev.yaml
-│   ├── values.prod.yaml
-│   └── templates/
-│
-├── .github/workflows/        ⏳ FUTURE
-│   ├── pr-checks.yml
-│   └── deploy.yml
-│
-└── README.md                 ✅ This file
-```
-
----
 
 ## 📖 Next Steps
 
 ### Phase 2: Ansible (Planned)
-- Configure CI runner VM
-- Install Docker, kubectl, Helm
-- Setup OIDC authentication
+
+This phase sets up the CI runner on a remote VM using Ansible.
+
+1️⃣ Prérequis
+
+Another VM available with IP address X
+
+Main controller VM with Ansible installed
+
+SSH access from controller to remote VM
+
+2️⃣ Configure SSH Access
+# Generate SSH key on main controller (if not already done)
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+
+# Copy SSH public key to remote VM
+ssh-copy-id -i ~/.ssh/id_rsa.pub ansible@X
+
+# Test SSH connection
+ssh ansible@X
+
+
+Replace X with the actual IP of your remote VM. You should be able to SSH without password after this step.
+
+3️⃣ Update Ansible Inventory
+
+Edit inventories/inventory.ini:
+
+[ci_runner]
+X ansible_user=ansible
+
+
+Replace X with the IP of your remote VM.
+
+4️⃣ Test Connection
+ansible -i inventories/inventory.ini ci_runner -m ping
+
+
+Expected output:
+
+X | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+
+5️⃣ Run Setup Playbook
+ansible-playbook -i inventories/dev/hosts.ini playbooks/setup_runner.yml --ask-become-pass
+
+
+--ask-become-pass will prompt for sudo
+✅ Quick Summary of the Playbook
+
+System Prerequisites
+
+Installs: curl, unzip, apt-transport-https, ca-certificates, software-properties-common
+
+Docker
+
+Installs Docker if not already installed
+
+Packages: docker-ce, docker-ce-cli, containerd, docker-compose-plugin, docker-buildx-plugin
+
+Kubernetes CLI (kubectl)
+
+Downloads and installs kubectl to manage Kubernetes clusters
+
+Helm
+
+Installs Helm v3 for managing Kubernetes charts
+
+Terraform
+
+Downloads and installs Terraform v1.8.3
+
+AWS CLI v2
+
+Installs the AWS command-line tool
+
+IAM Role via OIDC (GitHub Actions)
+
+Configures the CI runner to assume an IAM role via GitHub OIDC
+
+Exports AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN for CI jobs
+
+Docker Handler
+
+Restarts Docker if needed
 
 ### Phase 3: Application (Planned)
-- Simple HTTP server with `/healthz`
-- Multi-stage Dockerfile
-- Unit tests
+A minimal Go HTTP service exposing a health endpoint (/healthz) and metrics (/metrics). Container-ready with Docker multi-stage build, runs as non-root, includes HEALTHCHECK, and tracks request count.
+
+Features
+
+/healthz → Returns JSON with status and SYS_ENV environment variable.
+
+/metrics → Prometheus-style counter: my_app_requests_total.
+
+/ → Simple hello endpoint; increments request counter.
+
+Docker multi-stage build.
+
+Non-root user.
+Unit-test ready for reliability.
+
+Docker Usage
+Build Image
+docker build -t app:local .
+
+Run Container
+docker run -d -p 8080:8080 --name app-test app:local
+
+Test Health Endpoint
+docker exec -it app-test wget -qO- http://localhost:8080/healthz
+
+
+Expected Output:
+
+{
+  "status": "ok",
+  "SYS_ENV": "development" // or whatever SYS_ENV you set
+}
 
 ### Phase 4: Helm Chart 
 
 
-Chart with dev/prod values
+1️⃣ Helm Chart Overview
 
-HPA, probes, ingress
+Location: charts/app/
 
-Rollout strategy
+Features:
 
-1️⃣ Create the namespace
+Configurable replicas and resources
 
-kubectl create ns dev
+Liveness and readiness probes
 
+Ingress (or Gateway) + Service
 
-2️⃣ Create the private Docker Hub secret
+Horizontal Pod Autoscaler (HPA) based on CPU
 
-kubectl create secret docker-registry regcred \
-  --docker-username=ahmed20007 \
-  --docker-password=SaidaHamdouni2000! \
-  --docker-server=https://index.docker.io/v1/ \
-  --namespace dev
+Optional custom metrics or requests-per-second (RPS)
 
+Safe rollout strategy (RollingUpdate)
 
-3️⃣ Deploy the application with Helm
+Automated rollback on failed health checks
 
-helm upgrade --install app-dev ./ \
-  -f values.dev.yaml \
-  --namespace dev \
-  --atomic \
-  --wait \
-  --timeout 5m
+2️⃣ Directory Structure
+charts/app/
+├── Chart.yaml
+├── values.dev.yaml
+├── values.prod.yaml
+├── templates/
+│   ├── deployment.yaml   # Deployment with rolling update
+│   ├── service.yml       # ClusterIP service
+│   ├── ingress.yml       # Ingress rules
+│   ├── hpa.yaml          # Horizontal Pod Autoscaler
+│   └── _helpers.tpl      # Template helpers
 
+3️⃣ Deployment Features
+Rolling Update Strategy
 
-4️⃣ Check that the pods are Running
+Gradually replaces old pods
 
-kubectl get pods -n dev
+Configurable limits:
 
+maxUnavailable (default: 1)
 
-5️⃣ Check the service
+maxSurge (default: 1)
 
-kubectl get svc -n dev
+Safe rollout with --atomic ensures automated rollback if health checks fail
 
+Horizontal Pod Autoscaler
 
-Note the name and ClusterIP to test internal access.
+Scales pods automatically based on CPU utilization
 
-6️⃣ Test the service from a temporary pod
+Configurable min/max replicas
 
-kubectl run testpod -i --tty --rm --image=busybox --restart=Never -n dev -- sh
+Monitors /metrics endpoint for additional custom metrics if implemented
 
+Probes & Health Checks
 
-Then, inside this pod:
+/healthz endpoint for liveness and readiness
 
-wget -q -O- http://app-dev.dev.svc.cluster.local:8080/healthz
+--atomic: automatically rolls back if deployment fails
 
+--wait: waits until all resources are ready before finishing====|used in ci workflow
+### Phase 5: CI/CD 
+GitHub Actions Pipelines
 
-You should see:
+This project has three main workflows:
 
-{"SYS_ENV":"helloworld","status":"ok"}
+PR Validation (pr-validation.yml)
 
+Triggered on Pull Requests to main or manually via GitHub.
 
-7️⃣ Check the HPA
+Steps:
 
-kubectl get hpa -n dev -w
+Lint & test Go app
 
+Docker build (no push) + Trivy scan
 
-HPA shows REPLICAS, CPU %, and will scale pods if CPU exceeds 50%.
+Terraform fmt/validate/plan
 
-8️⃣ Test HPA under load
+Helm lint + chart unit tests
 
-kubectl run load-gen -i --tty --rm --image=busybox --restart=Never -- sh
-while true; do wget -q -O- http://app-dev.dev.svc.cluster.local:8080/healthz; done
+IaC security scan (tfsec)
 
+Can be run manually from the Actions tab.
 
-You should see the number of pods increase in HPA if CPU usage rises.
+Build & Push to Dev / Dev Deploy (build-and-push.yml)
 
-9️⃣ Automatic rollback
+Triggered on merge/push to main or manually.
 
-If the deployment fails probes or does not become ready:
+Steps:
 
-helm upgrade --install app-dev ./ -f values.dev.yaml --namespace dev --atomic
+Build & push Docker image to ECR (:main + :<short_sha>)
 
+Terraform apply
 
-Helm will automatically roll back to the previous stable version.
+Deploy to Dev using Helm (values.dev.yaml)
 
+Post-deploy smoke test (/healthz)
 
-### Phase 5: CI/CD (Planned)
-GitHub Actions CI Pipeline Testing
+Generate deployment report
 
-This guide explains how to test the CI workflow for this repository using a test branch and pull request. The workflow includes: Go lint & tests, Docker build & Trivy scan, Terraform fmt/validate/plan, Helm lint/unit tests, and TFSEC IaC security scan.
+Can be triggered manually for testing or redeployment.
 
-1️⃣ Create a test branch
-git siwtch test-ci
+Production Promotion (Deploy_to_Production.yml)
 
+Manual approval required to run.
 
+Steps:
 
-2️⃣ Make a small change to trigger CI
-# Example: add a comment
-echo "// trigger CI test" >> app/src/main.go
-git add app/src/main.go
-git commit -m "Test CI workflow"
-git push origin test-ci
+Deploy to Production using Helm (values.prod.yaml)
 
-3️⃣ Open a Pull Request
+Apply rollout strategy (rolling update with probes)
 
-Go to GitHub → your repo → “Pull Requests” → “New pull request”
-
-Base: main
-
-Compare: test-ci
-
-This automatically triggers the workflow because it runs on pull_request to main.
-
-4️⃣ Check workflow run
-
-Go to the Actions tab → click the latest run → view logs for each step:
-
-1️⃣ Checkout repository
-2️⃣ Setup Go
-3️⃣ Install dependencies
-4️⃣ Go lint
-5️⃣ Run unit tests
-6️⃣ Docker build
-7️⃣ Trivy vulnerability scan
-8️⃣ Upload Trivy SARIF results
-9️⃣ Setup Terraform
-🔟 Terraform Init
-1️⃣1️⃣ Terraform fmt check
-1️⃣2️⃣ Terraform validate
-1️⃣3️⃣ Terraform plan
-1️⃣4️⃣ Helm lint
-1️⃣5️⃣ Install Helm unittest plugin
-1️⃣6️⃣ Helm unit tests
-1️⃣7️⃣ Install tfsec
-1️⃣8️⃣ TFSEC IaC security scan
----
-
-# Build & Push Docker to Amazon ECR
-
-This GitHub Actions workflow builds a Docker image from your app and pushes it to AWS ECR.
-
-When it runs
-
-On push to main branch
-
-Can also be triggered manually via workflow_dispatch
-
-Steps
-
-Checkout code
-Pulls your repository so the workflow can access your app.
-Configure AWS credentials
-Uses GitHub secrets to authenticate with AWS.
-Login to Amazon ECR
-Logs Docker into your ECR registry to allow image pushes.
-Build Docker image
-Builds image from app/src
-Tags image with:
-main → latest version
-Short commit SHA → unique version for traceability
-Push Docker image
-Pushes both tags to ECR.
-
-Show pushed tags
-Prints image tags in workflow logs.
-
-Environment variables (from GitHub Secrets)
-AWS_ACCOUNT_ID → Your AWS account ID
-AWS_DEFAULT_REGION → AWS region for ECR
-AWS_ACCESS_KEY_ID → AWS IAM key
-AWS_SECRET_ACCESS_KEY → AWS IAM secret key
-
-## 📊 Progress Tracker
-
-| Phase | Component | Status | Progress |
-|-------|-----------|--------|----------|
-| 1 | Infrastructure (Terraform) | ✅ Complete | 100% |
-| 2 | Build Host (Ansible) | ⏳ Planned | 0% |
-| 3 | Application (Docker) | ⏳ Planned | 0% |
-| 4 | Helm Deployment | ⏳ Planned | 0% |
-| 5 | CI/CD Pipeline | ⏳ Planned | 0% |
-| 6 | Security & Observability | ⏳ Planned | 0% |
-| 7 | Documentation | 🚧 In Progress | 50% |
-| **OVERALL** | | | **15%** |
-
----
-
-## 🎓 Skills Demonstrated
-
-**Infrastructure as Code:**
-- ✅ Terraform module usage (EKS v18.29.0)
-- ✅ AWS provider configuration (~v5.0)
-- ✅ Variable management
-- ✅ Output definitions
-
-**AWS Services:**
-- ✅ EKS cluster provisioning
-- ✅ VPC and subnet design
-- ✅ ECR repository management
-- ✅ IAM roles and policies
-- ✅ OIDC federation setup
-
-**Kubernetes:**
-- ✅ Managed node groups
-- ✅ kubectl configuration
-- ✅ Cluster connectivity
-
-**Documentation:**
-- ✅ Clear README structure
-- ✅ Code examples with explanations
-- ✅ Troubleshooting guides
-- ✅ Architecture diagrams
-
----
-
-## 🤝 Contact
-
-**Ahmed Marzougui**  
-GitHub: [@MarzouguiAhmed9](https://github.com/MarzouguiAhmed9)
-
----
-
-## 📝 Notes
-
-- This is Phase 1 of a 7-phase DevOps challenge project
-- Infrastructure is production-sensible but optimized for demonstration
-- All costs are estimates based on us-east-1 pricing (October 2024)
-- GitLab OIDC configuration requires project-specific updates
-
----
-
-**Last Updated:** 2024-10-18 13:29:31 UTC  
-**Version:** 1.0.0  
-**Status:** Phase 1 Complete ✅
+Automated rollback on failure
+
+Upload SBOM and vulnerability scan reports
+
+Publish deployment summary
+
+Always run manually for controlled production deployment.
+
+===|This clearly links workflow files to their purpose and highlights that all workflows can be triggered manually from GitHub Actions.
+
+### Phase 6: CI/CD 
+Secrets & IAM
+
+OIDC-based authentication:
+CI pipelines authenticate to AWS using OpenID Connect (OIDC). No long-lived credentials stored in GitHub.
+
+Cloud-native secret storage:
+Sensitive data like AWS Account ID is stored in AWS SSM Parameter Store.
+
+### Phase 6: Observability
+
+App metrics:
+
+/metrics endpoint exposes a counter of total requests:
+
+my_app_requests_total 42
+
+
+/healthz endpoint shows app health and environment info:
+
+{
+  "status": "ok",
+  "SYS_ENV": "dev"
+}
+
+
+Cloud metrics:
+
+Use CloudWatch to monitor CPU, memory, network, and logs from all pods:
+
+cloudwatch-agent → cluster & pod metrics
+
+aws-for-fluent-bit → pod logs to CloudWatch Logs
+
+Check HPA & app health:
+
+kubectl get hpa
+kubectl describe hpa ship-a-service-app-hpa
+
+
