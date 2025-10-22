@@ -136,7 +136,7 @@ jobs:
           grype $IMAGE_URI:${GITHUB_SHA::8} -o sarif > vulnerabilities.sarif
           grype $IMAGE_URI:${GITHUB_SHA::8} || true
 
-      # Upload to GitHub Security
+      # Upload vulnerabilities to GitHub Security
       - name: Upload scan results
         uses: github/codeql-action/upload-sarif@v3
         if: success()
@@ -150,6 +150,15 @@ jobs:
         with:
           name: sbom-${{ github.sha }}
           path: sbom.json
+          retention-days: 90
+
+      # Upload vulnerabilities artifact
+      - name: Upload vulnerabilities artifact
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: vulnerabilities-${{ github.sha }}
+          path: vulnerabilities.sarif
           retention-days: 90
 
       # Generate deployment report
@@ -174,4 +183,14 @@ jobs:
           - [Security](${{ github.server_url }}/${{ github.repository }}/security/code-scanning)
           EOF
 
+          # Add report to GitHub step summary
           cat report.md >> $GITHUB_STEP_SUMMARY
+
+      # Upload deployment report artifact
+      - name: Upload deployment report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deployment-report-${{ github.sha }}
+          path: report.md
+          retention-days: 90
