@@ -54,13 +54,7 @@ jobs:
           ignore-unfixed: true
           exit-code: '0'
 
-      # 8️⃣ Upload Trivy results to GitHub Security
-      - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
-
+  
       # 9️⃣ Setup Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
