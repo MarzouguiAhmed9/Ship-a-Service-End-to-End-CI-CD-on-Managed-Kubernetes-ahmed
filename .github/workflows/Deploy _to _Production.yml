@@ -1,3 +1,4 @@
+
 name: Build, Push & Deploy to EKS
 
 on:
@@ -29,7 +30,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}  # ✅ Fixed
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ship-a-service-github-actions-role
           role-session-name: GitHubActions-${{ github.run_id }}
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
