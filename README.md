@@ -265,7 +265,9 @@ Automated rollback on failed health checks
 charts/app/
 ├── Chart.yaml
 ├── values.dev.yaml
-├── values.prod.yaml
+├── values.prod.yamlAKIAYS2NT2G72WXJLZUX
+
+MaHgtw4li0ulPR2QisoEiCRq/vvAmyleDduZVbaK
 ├── templates/
 │   ├── deployment.yaml   # Deployment with rolling update
 │   ├── service.yml       # ClusterIP service
