@@ -1,143 +1,112 @@
-# Ship-a-Service: End-to-End CI/CD on Managed Kubernetes
+Ship-a-Service: End-to-End CI/CD on Managed Kubernetes
 Launch EKS Cluster with Terraform
-1️⃣ Set AWS credentials
+1️⃣ Set AWS Credentials
+
 Export your AWS keys and region:
+
 export AWS_ACCESS_KEY_ID=<your_access_key>
 export AWS_SECRET_ACCESS_KEY=<your_secret_key>
 export AWS_DEFAULT_REGION=<your_region>
 
 
-Create key if missing:
+Create an EC2 key pair if missing:
+
 aws ec2 create-key-pair --key-name ahmedkey --query 'KeyMaterial' --output text > ahmedkey.pem
 chmod 400 ahmedkey.pem
 
-
-
-3️⃣ Initialize Terraform
+2️⃣ Initialize Terraform
 terraform init
-4️⃣ Plan deployment
+
+3️⃣ Plan Deployment
 terraform plan
+
+
 Check that Terraform plans to create your VPC, subnets, EKS cluster, node groups, and ECR repository.
-5️⃣ Apply deployment
+
+4️⃣ Apply Deployment
 terraform apply
 
-## 🎯 What's Been Built (Phase 1)
+🎯 Phase 1: What’s Been Built
 
-Infrastructure réseau
+Network Infrastructure
 
-Crée un VPC avec DNS activé.
+Creates a VPC with DNS enabled.
 
-Ajoute une Internet Gateway pour le trafic sortant.
+Adds an Internet Gateway for outbound traffic.
 
-Définit une route publique (0.0.0.0/0).
+Defines a public route (0.0.0.0/0).
 
-Crée 2 subnets publics dans deux zones de disponibilité pour HA.
+Creates 2 public subnets in 2 availability zones for high availability.
 
-Associe les subnets à la route table.
+Associates subnets with the route table.
 
 EKS (Kubernetes)
 
-Déploie un cluster EKS version 1.28.
+Deploys an EKS cluster, version 1.28.
 
-Crée un managed node group avec un type d’instance, nombre min/max de nœuds, et SSH key.
+Creates a managed node group with instance type, min/max nodes, and SSH key.
 
-Les nodes sont tagués et répartis sur les 2 subnets pour haute disponibilité.
+Nodes are tagged and distributed across 2 subnets for high availability.
 
-ECR (Docker registry)
+ECR (Docker Registry)
 
-Crée un repository ECR ship-a-service avec scan d’image à la push et AES256 pour le stockage.
+Creates an ECR repository ship-a-service with image scanning on push and AES256 encryption.
 
-Politique de cycle de vie pour garder les 10 dernières images.
+Lifecycle policy keeps the 10 most recent images.
 
 IAM & GitHub Actions (CI/CD)
 
-Crée un OIDC provider pour GitHub Actions.
+Creates an OIDC provider for GitHub Actions.
 
-Crée un role IAM pour GitHub Actions avec permissions pour :
+Creates an IAM role for GitHub Actions with permissions to:
 
-Pousser/puller les images dans ECR.
+Push/pull images in ECR.
 
-Déployer sur le cluster EKS (via une policy personnalisée).
+Deploy to the EKS cluster (via a custom policy).
 
-
-Connect to Cluster
-```bash
-# Configure kubectl
+Connect to the Cluster
 aws eks update-kubeconfig \
   --region us-east-1 \
   --name ship-a-service
 
-# Verify
 kubectl get nodes
-```
 
-**Expected Output:**
-```
+
+Expected Output:
+
 NAME                          STATUS   ROLES    AGE   VERSION
 ip-10-0-1-xxx.ec2.internal    Ready    <none>   5m    v1.28.x
 ip-10-0-2-xxx.ec2.internal    Ready    <none>   5m    v1.28.x
-```
 
+📊 Outputs
 
+Useful Technical Info
 
-## 📊 Outputs
+registry_url → ECR URL to push/pull Docker images
 
-1️⃣ Infos techniques utiles pour déploiement
+cluster_name → EKS cluster name
 
-registry_url → URL du ECR pour push/pull les images Docker.
+cluster_endpoint → API endpoint for kubectl
 
-cluster_name → nom du cluster EKS.
+cluster_certificate_authority_data → certificate for secure access
 
-cluster_endpoint → endpoint API du cluster pour kubectl.
+kubeconfig_yaml → full kubeconfig file, ready to copy to ~/.kube/config
 
-cluster_certificate_authority_data → certificat pour sécuriser l’accès Kubernetes.
+github_actions_role_arn → IAM Role ARN for GitHub Actions CI/CD
 
-kubeconfig_yaml → fichier kubeconfig complet prêt à copier dans ~/.kube/config.
+Cost Tracking
 
-github_actions_role_arn → ARN du role IAM GitHub Actions pour CI/CD.
+monthly_cost_estimate → estimated monthly costs (control plane, nodes, ECR, logs, bandwidth)
 
-Ces outputs permettent à ton équipe ou à GitHub Actions d’interagir avec le cluster et le registry facilement.
+cost_report → formatted cost table with optimization tips
 
-2️⃣ Estimation et suivi des coûts
+total_monthly_cost, total_daily_cost, total_hourly_cost → quick summary
 
-monthly_cost_estimate → détail complet par mois : coût control plane, nodes, ECR, logs, transfert de données, etc.
+budget_status → OK, WARNING, or OVER BUDGET
 
-cost_report → version formatée et lisible (tableau avec conseils d’optimisation et budget).
+cost_comparison → compare minimal/dev/prod configurations
 
-total_monthly_cost, total_daily_cost, total_hourly_cost → résumé rapide.
-
-budget_status → indique si tu es dans le budget (OK, WARNING, OVER BUDGET).
-
-cost_comparison → comparaison entre différentes configurations (minimal/dev/prod).
-
-cost_metadata → infos sur la méthode de calcul, source, date, etc.
-
-
-## 📖 Next Steps
-
-### Phase 2: Ansible (Planned)
-
-This phase sets up the CI runner on a remote VM using Ansible.
-
-1️⃣ Prérequis
-
-Another VM available with IP address X
-
-Main controller VM with Ansible installed
-
-SSH access from controller to remote VM
-
-2️⃣ Configure SSH Access
-# Generate SSH key on main controller (if not already done)
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
-
-# Copy SSH public key to remote VM
-ssh-copy-id -i ~/.ssh/id_rsa.pub ansible@X
-
-# Test SSH connection
-ssh ansible@X
-
-
+cost_metadata → info about calculation method, source, date
 Replace X with the actual IP of your remote VM. You should be able to SSH without password after this step.
 
 3️⃣ Update Ansible Inventory
