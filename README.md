@@ -1,375 +1,567 @@
-Ship-a-Service: End-to-End CI/CD on Managed Kubernetes
-Launch EKS Cluster with Terraform
-1️⃣ Set AWS Credentials
+# 🚀 Ship-a-Service: End-to-End CI/CD on Managed Kubernetes
 
-Export your AWS keys and region:
+A production-ready reference implementation for deploying containerized applications on AWS EKS with full CI/CD automation, infrastructure as code, and observability.
 
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Prerequisites](#prerequisites)
+- [Phase 1: Infrastructure Setup](#phase-1-infrastructure-setup)
+- [Phase 2: CI Runner Configuration](#phase-2-ci-runner-configuration)
+- [Phase 3: Application](#phase-3-application)
+- [Phase 4: Helm Chart](#phase-4-helm-chart)
+- [Phase 5: CI/CD Pipelines](#phase-5-cicd-pipelines)
+- [Phase 6: Security & Secrets](#phase-6-security--secrets)
+- [Phase 7: Observability](#phase-7-observability)
+- [Cost Management](#cost-management)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## 🎯 Overview
+
+**Ship-a-Service** demonstrates enterprise-grade deployment patterns including:
+
+- ✅ Infrastructure as Code (Terraform)
+- ✅ Managed Kubernetes (AWS EKS)
+- ✅ Container Registry (AWS ECR)
+- ✅ GitOps CI/CD (GitHub Actions)
+- ✅ OIDC-based Authentication (no long-lived credentials)
+- ✅ Automated Testing & Security Scanning
+- ✅ Horizontal Pod Autoscaling
+- ✅ Safe Rollout & Automated Rollback
+- ✅ Comprehensive Observability
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      GitHub Actions                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │ PR Validation│  │ Build & Push │  │ Prod Deploy  │      │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
+└─────────┼──────────────────┼──────────────────┼─────────────┘
+          │                  │                  │
+          └──────────────────┼──────────────────┘
+                             │ OIDC Auth
+                             ▼
+          ┌─────────────────────────────────────┐
+          │           AWS Cloud                 │
+          │  ┌──────────┐      ┌─────────────┐ │
+          │  │   ECR    │◄─────┤   EKS       │ │
+          │  │ Registry │      │  Cluster    │ │
+          │  └──────────┘      │             │ │
+          │                    │ ┌─────────┐ │ │
+          │                    │ │  Dev    │ │ │
+          │                    │ │  Pods   │ │ │
+          │                    │ └─────────┘ │ │
+          │                    │ ┌─────────┐ │ │
+          │                    │ │  Prod   │ │ │
+          │                    │ │  Pods   │ │ │
+          │                    │ └─────────┘ │ │
+          │                    └─────────────┘ │
+          └─────────────────────────────────────┘
+```
+
+---
+
+## 📦 Prerequisites
+
+- **AWS Account** with appropriate permissions
+- **Terraform** v1.8.3+
+- **kubectl** compatible with Kubernetes 1.28
+- **Helm** v3.x
+- **Docker** (for local testing)
+- **AWS CLI** v2
+- **GitHub Account** (for CI/CD)
+
+---
+
+## 🏗️ Phase 1: Infrastructure Setup
+
+### 1️⃣ Set AWS Credentials
+
+```bash
 export AWS_ACCESS_KEY_ID=<your_access_key>
 export AWS_SECRET_ACCESS_KEY=<your_secret_key>
 export AWS_DEFAULT_REGION=<your_region>
-
+```
 
 Create an EC2 key pair if missing:
 
+```bash
 aws ec2 create-key-pair --key-name ahmedkey --query 'KeyMaterial' --output text > ahmedkey.pem
 chmod 400 ahmedkey.pem
+```
 
-2️⃣ Initialize Terraform
+### 2️⃣ Initialize Terraform
+
+```bash
 terraform init
+```
 
-3️⃣ Plan Deployment
+### 3️⃣ Plan Deployment
+
+```bash
 terraform plan
+```
 
+**Expected Resources:**
+- VPC with DNS enabled
+- Internet Gateway
+- 2 Public subnets across availability zones
+- EKS cluster (v1.28)
+- Managed node group
+- ECR repository
+- IAM roles for GitHub Actions (OIDC)
 
-Check that Terraform plans to create your VPC, subnets, EKS cluster, node groups, and ECR repository.
+### 4️⃣ Apply Deployment
 
-4️⃣ Apply Deployment
+```bash
 terraform apply
+```
 
-🎯 Phase 1: What’s Been Built
+### 5️⃣ Connect to the Cluster
 
-Network Infrastructure
-
-Creates a VPC with DNS enabled.
-
-Adds an Internet Gateway for outbound traffic.
-
-Defines a public route (0.0.0.0/0).
-
-Creates 2 public subnets in 2 availability zones for high availability.
-
-Associates subnets with the route table.
-
-EKS (Kubernetes)
-
-Deploys an EKS cluster, version 1.28.
-
-Creates a managed node group with instance type, min/max nodes, and SSH key.
-
-Nodes are tagged and distributed across 2 subnets for high availability.
-
-ECR (Docker Registry)
-
-Creates an ECR repository ship-a-service with image scanning on push and AES256 encryption.
-
-Lifecycle policy keeps the 10 most recent images.
-
-IAM & GitHub Actions (CI/CD)
-
-Creates an OIDC provider for GitHub Actions.
-
-Creates an IAM role for GitHub Actions with permissions to:
-
-Push/pull images in ECR.
-
-Deploy to the EKS cluster (via a custom policy).
-
-Connect to the Cluster
+```bash
 aws eks update-kubeconfig \
   --region us-east-1 \
   --name ship-a-service
 
 kubectl get nodes
+```
 
+**Expected Output:**
 
-Expected Output:
-
+```
 NAME                          STATUS   ROLES    AGE   VERSION
 ip-10-0-1-xxx.ec2.internal    Ready    <none>   5m    v1.28.x
 ip-10-0-2-xxx.ec2.internal    Ready    <none>   5m    v1.28.x
+```
 
-📊 Outputs
+### 📊 Infrastructure Outputs
 
-Useful Technical Info
+| Output | Description |
+|--------|-------------|
+| `registry_url` | ECR URL for Docker images |
+| `cluster_name` | EKS cluster name |
+| `cluster_endpoint` | Kubernetes API endpoint |
+| `cluster_certificate_authority_data` | Certificate for secure access |
+| `kubeconfig_yaml` | Ready-to-use kubeconfig |
+| `github_actions_role_arn` | IAM Role ARN for CI/CD |
 
-registry_url → ECR URL to push/pull Docker images
+---
 
-cluster_name → EKS cluster name
+## 🤖 Phase 2: CI Runner Configuration
 
-cluster_endpoint → API endpoint for kubectl
+### 1️⃣ SSH Key Setup
 
-cluster_certificate_authority_data → certificate for secure access
+Generate SSH key pair:
 
-kubeconfig_yaml → full kubeconfig file, ready to copy to ~/.kube/config
+```bash
+ssh-keygen -t rsa -b 4096 -C "ansible" -f ~/.ssh/ansible_key
+```
 
-github_actions_role_arn → IAM Role ARN for GitHub Actions CI/CD
+Copy public key to remote VM:
 
-Cost Tracking
+```bash
+ssh-copy-id -i ~/.ssh/ansible_key.pub ansible@<VM_IP>
+```
 
-monthly_cost_estimate → estimated monthly costs (control plane, nodes, ECR, logs, bandwidth)
+### 2️⃣ Update Ansible Inventory
 
-cost_report → formatted cost table with optimization tips
+Edit `inventories/inventory.ini`:
 
-total_monthly_cost, total_daily_cost, total_hourly_cost → quick summary
-
-budget_status → OK, WARNING, or OVER BUDGET
-
-cost_comparison → compare minimal/dev/prod configurations
-
-cost_metadata → info about calculation method, source, date
-Replace X with the actual IP of your remote VM. You should be able to SSH without password after this step.
-
-3️⃣ Update Ansible Inventory
-
-Edit inventories/inventory.ini:
-
+```ini
 [ci_runner]
-X ansible_user=ansible
+<VM_IP> ansible_user=ansible
+```
 
+### 3️⃣ Test Connection
 
-Replace X with the IP of your remote VM.
-
-4️⃣ Test Connection
+```bash
 ansible -i inventories/inventory.ini ci_runner -m ping
+```
 
+**Expected output:**
 
-Expected output:
-
-X | SUCCESS => {
+```
+<VM_IP> | SUCCESS => {
     "changed": false,
     "ping": "pong"
 }
+```
 
-5️⃣ Run Setup Playbook
+### 4️⃣ Run Setup Playbook
+
+```bash
 ansible-playbook -i inventories/dev/hosts.ini playbooks/setup_runner.yml --ask-become-pass
+```
 
+### ✅ What Gets Installed
 
---ask-become-pass will prompt for sudo
-✅ Quick Summary of the Playbook
+- **System Prerequisites:** curl, unzip, ca-certificates
+- **Docker:** CE, CLI, containerd, compose, buildx
+- **Kubernetes CLI:** kubectl
+- **Helm:** v3 for chart management
+- **Terraform:** v1.8.3
+- **AWS CLI:** v2
+- **IAM Role Configuration:** OIDC-based authentication
 
-System Prerequisites
+---
 
-Installs: curl, unzip, apt-transport-https, ca-certificates, software-properties-common
+## 🐹 Phase 3: Application
 
-Docker
+A minimal Go HTTP service with health endpoints and Prometheus metrics.
 
-Installs Docker if not already installed
+### Features
 
-Packages: docker-ce, docker-ce-cli, containerd, docker-compose-plugin, docker-buildx-plugin
+- **`/healthz`** → JSON health check with environment info
+- **`/metrics`** → Prometheus-style request counter
+- **`/`** → Hello endpoint (increments counter)
+- Multi-stage Docker build
+- Non-root user
+- Built-in `HEALTHCHECK`
+- Unit-test ready
 
-Kubernetes CLI (kubectl)
+### Docker Usage
 
-Downloads and installs kubectl to manage Kubernetes clusters
+#### Build Image
 
-Helm
-
-Installs Helm v3 for managing Kubernetes charts
-
-Terraform
-
-Downloads and installs Terraform v1.8.3
-
-AWS CLI v2
-
-Installs the AWS command-line tool
-
-IAM Role via OIDC (GitHub Actions)
-
-Configures the CI runner to assume an IAM role via GitHub OIDC
-
-Exports AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN for CI jobs
-
-Docker Handler
-
-Restarts Docker if needed
-
-### Phase 3: Application (Planned)
-A minimal Go HTTP service exposing a health endpoint (/healthz) and metrics (/metrics). Container-ready with Docker multi-stage build, runs as non-root, includes HEALTHCHECK, and tracks request count.
-
-Features
-
-/healthz → Returns JSON with status and SYS_ENV environment variable.
-
-/metrics → Prometheus-style counter: my_app_requests_total.
-
-/ → Simple hello endpoint; increments request counter.
-
-Docker multi-stage build.
-
-Non-root user.
-Unit-test ready for reliability.
-
-Docker Usage
-Build Image
+```bash
 docker build -t app:local .
+```
 
-Run Container
+#### Run Container
+
+```bash
 docker run -d -p 8080:8080 --name app-test app:local
+```
 
-Test Health Endpoint
+#### Test Health Endpoint
+
+```bash
 docker exec -it app-test wget -qO- http://localhost:8080/healthz
+```
 
+**Expected Output:**
 
-Expected Output:
-
+```json
 {
   "status": "ok",
-  "SYS_ENV": "development" // or whatever SYS_ENV you set
+  "SYS_ENV": "development"
 }
+```
 
-### Phase 4: Helm Chart 
+#### Test Metrics
 
+```bash
+curl http://localhost:8080/metrics
+```
 
-1️⃣ Helm Chart Overview
+**Expected Output:**
 
-Location: charts/app/
+```
+my_app_requests_total 42
+```
 
-Features:
+---
 
-Configurable replicas and resources
+## ⎈ Phase 4: Helm Chart
 
-Liveness and readiness probes
+### 1️⃣ Chart Overview
 
-Ingress (or Gateway) + Service
+**Location:** `charts/app/`
 
-Horizontal Pod Autoscaler (HPA) based on CPU
+**Features:**
+- Configurable replicas and resources
+- Liveness and readiness probes
+- Ingress + Service configuration
+- Horizontal Pod Autoscaler (HPA)
+- Rolling update strategy
+- Automated rollback on failure
 
-Optional custom metrics or requests-per-second (RPS)
+### 2️⃣ Directory Structure
 
-Safe rollout strategy (RollingUpdate)
-
-Automated rollback on failed health checks
-
-2️⃣ Directory Structure
+```
 charts/app/
 ├── Chart.yaml
 ├── values.dev.yaml
-├── values.prod.yamlAKIAYS2NT2G72WXJLZUX
-
-MaHgtw4li0ulPR2QisoEiCRq/vvAmyleDduZVbaK
+├── values.prod.yaml
 ├── templates/
-│   ├── deployment.yaml   # Deployment with rolling update
+│   ├── deployment.yaml   # Rolling update deployment
 │   ├── service.yml       # ClusterIP service
 │   ├── ingress.yml       # Ingress rules
 │   ├── hpa.yaml          # Horizontal Pod Autoscaler
 │   └── _helpers.tpl      # Template helpers
+```
 
-3️⃣ Deployment Features
-Rolling Update Strategy
+### 3️⃣ Deployment Features
 
-Gradually replaces old pods
+#### Rolling Update Strategy
 
-Configurable limits:
+- Gradually replaces old pods
+- Configurable limits:
+  - `maxUnavailable: 1`
+  - `maxSurge: 1`
+- `--atomic` flag ensures automated rollback if health checks fail
 
-maxUnavailable (default: 1)
+#### Horizontal Pod Autoscaler
 
-maxSurge (default: 1)
+- Scales pods automatically based on CPU utilization
+- Configurable min/max replicas
+- Monitors `/metrics` endpoint for custom metrics
 
-Safe rollout with --atomic ensures automated rollback if health checks fail
+#### Probes & Health Checks
 
-Horizontal Pod Autoscaler
+- **Liveness:** `/healthz` endpoint
+- **Readiness:** `/healthz` endpoint
+- `--wait` flag waits until all resources are ready
 
-Scales pods automatically based on CPU utilization
+### 4️⃣ Deploy with Helm
 
-Configurable min/max replicas
+**Development:**
 
-Monitors /metrics endpoint for additional custom metrics if implemented
+```bash
+helm upgrade --install ship-a-service charts/app/ \
+  -f charts/app/values.dev.yaml \
+  --atomic \
+  --wait
+```
 
-Probes & Health Checks
+**Production:**
 
-/healthz endpoint for liveness and readiness
+```bash
+helm upgrade --install ship-a-service charts/app/ \
+  -f charts/app/values.prod.yaml \
+  --atomic \
+  --wait
+```
 
---atomic: automatically rolls back if deployment fails
+---
 
---wait: waits until all resources are ready before finishing====|used in ci workflow
-### Phase 5: CI/CD 
-GitHub Actions Pipelines
+## 🔄 Phase 5: CI/CD Pipelines
 
-This project has three main workflows:
+Three main workflows power the CI/CD pipeline:
 
-PR Validation (pr-validation.yml)
+### 1️⃣ PR Validation (`pr-validation.yml`)
 
-Triggered on Pull Requests to main or manually via GitHub.
+**Trigger:** Pull Requests to `main` or manual dispatch
 
-Steps:
+**Steps:**
+- ✅ Lint & test Go application
+- ✅ Docker build (no push) + Trivy security scan
+- ✅ Terraform format/validate/plan
+- ✅ Helm lint + chart unit tests
+- ✅ IaC security scan (tfsec)
 
-Lint & test Go app
+**Manual Trigger:** Available from GitHub Actions tab
 
-Docker build (no push) + Trivy scan
+### 2️⃣ Build & Push to Dev (`build-and-push.yml`)
 
-Terraform fmt/validate/plan
+**Trigger:** Merge/push to `main` or manual dispatch
 
-Helm lint + chart unit tests
+**Steps:**
+1. Build & push Docker image to ECR (`:main` + `:<short_sha>`)
+2. Apply Terraform infrastructure
+3. Deploy to Dev using Helm (`values.dev.yaml`)
+4. Post-deploy smoke test (`/healthz`)
+5. Generate deployment report
 
-IaC security scan (tfsec)
+**Manual Trigger:** Available for testing or redeployment
 
-Can be run manually from the Actions tab.
+### 3️⃣ Production Deployment (`Deploy_to_Production.yml`)
 
-Build & Push to Dev / Dev Deploy (build-and-push.yml)
+**Trigger:** Manual approval required
 
-Triggered on merge/push to main or manually.
+**Steps:**
+1. Deploy to Production using Helm (`values.prod.yaml`)
+2. Apply rollout strategy (rolling update with probes)
+3. Automated rollback on failure
+4. Upload SBOM and vulnerability scan reports
+5. Publish deployment summary
 
-Steps:
+**⚠️ Always manual** for controlled production deployment
 
-Build & push Docker image to ECR (:main + :<short_sha>)
+### 🎯 Workflow Summary
 
-Terraform apply
+| Workflow | Trigger | Purpose | Manual? |
+|----------|---------|---------|---------|
+| PR Validation | PRs to `main` | Quality gates | ✅ Yes |
+| Build & Push | Merge to `main` | Dev deployment | ✅ Yes |
+| Prod Deploy | Manual only | Production release | ✅ Required |
 
-Deploy to Dev using Helm (values.dev.yaml)
+---
 
-Post-deploy smoke test (/healthz)
+## 🔒 Phase 6: Security & Secrets
 
-Generate deployment report
+### OIDC-Based Authentication
 
-Can be triggered manually for testing or redeployment.
+- **No long-lived credentials** stored in GitHub
+- CI pipelines authenticate to AWS using OpenID Connect (OIDC)
+- Temporary credentials issued per workflow run
 
-Production Promotion (Deploy_to_Production.yml)
+### Cloud-Native Secret Storage
 
-Manual approval required to run.
+- Sensitive data stored in **AWS SSM Parameter Store**
+- Examples:
+  - AWS Account ID
+  - Database credentials
+  - API keys
 
-Steps:
+### Security Scanning
 
-Deploy to Production using Helm (values.prod.yaml)
+- **Trivy:** Container image vulnerability scanning
+- **tfsec:** Terraform security analysis
+- **SBOM Generation:** Software Bill of Materials for compliance
 
-Apply rollout strategy (rolling update with probes)
+---
 
-Automated rollback on failure
+## 📊 Phase 7: Observability
 
-Upload SBOM and vulnerability scan reports
+### Application Metrics
 
-Publish deployment summary
+#### `/metrics` Endpoint
 
-Always run manually for controlled production deployment.
+Exposes Prometheus-compatible metrics:
 
-===|This clearly links workflow files to their purpose and highlights that all workflows can be triggered manually from GitHub Actions.
-
-### Phase 6: CI/CD 
-Secrets & IAM
-
-OIDC-based authentication:
-CI pipelines authenticate to AWS using OpenID Connect (OIDC). No long-lived credentials stored in GitHub.
-
-Cloud-native secret storage:
-Sensitive data like AWS Account ID is stored in AWS SSM Parameter Store.
-
-### Phase 7: Observability
-
-App metrics:
-
-/metrics endpoint exposes a counter of total requests:
-
+```
 my_app_requests_total 42
+```
 
+#### `/healthz` Endpoint
 
-/healthz endpoint shows app health and environment info:
+Returns app health and environment info:
 
+```json
 {
   "status": "ok",
   "SYS_ENV": "dev"
 }
+```
 
+### Cloud Metrics
 
-Cloud metrics:
+**CloudWatch Integration:**
 
-Use CloudWatch to monitor CPU, memory, network, and logs from all pods:
+- `cloudwatch-agent` → Cluster & pod metrics
+- `aws-for-fluent-bit` → Pod logs to CloudWatch Logs
 
-cloudwatch-agent → cluster & pod metrics
+**Monitor CPU, memory, network, and logs:**
 
-aws-for-fluent-bit → pod logs to CloudWatch Logs
-
-Check HPA & app health:
-
+```bash
+# View HPA status
 kubectl get hpa
+
+# Detailed HPA metrics
 kubectl describe hpa ship-a-service-app-hpa
 
+# Pod logs
+kubectl logs -l app=ship-a-service --tail=100
+```
 
+### Key Metrics to Monitor
+
+| Metric | Source | Purpose |
+|--------|--------|---------|
+| Request count | `/metrics` | Traffic patterns |
+| Pod CPU/Memory | CloudWatch | Resource utilization |
+| HPA scaling events | Kubernetes | Autoscaling behavior |
+| Health check failures | `/healthz` | Service availability |
+
+---
+
+## 💰 Cost Management
+
+### Cost Outputs
+
+Terraform provides detailed cost estimates:
+
+| Output | Description |
+|--------|-------------|
+| `monthly_cost_estimate` | Estimated monthly costs |
+| `cost_report` | Formatted cost table with optimization tips |
+| `total_monthly_cost` | Total monthly estimate |
+| `total_daily_cost` | Daily breakdown |
+| `total_hourly_cost` | Hourly breakdown |
+| `budget_status` | OK, WARNING, or OVER BUDGET |
+| `cost_comparison` | Compare minimal/dev/prod configurations |
+| `cost_metadata` | Calculation method, source, date |
+
+### Cost Components
+
+- **EKS Control Plane:** ~$73/month
+- **EC2 Node Group:** Based on instance type and count
+- **ECR Storage:** Per GB stored
+- **Data Transfer:** Egress charges
+- **CloudWatch:** Logs and metrics
+
+### Optimization Tips
+
+1. Use spot instances for non-production workloads
+2. Enable cluster autoscaler
+3. Set appropriate HPA thresholds
+4. Monitor ECR image lifecycle policies
+5. Review CloudWatch log retention
+
+---
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### Pods Not Starting
+
+```bash
+# Check pod status
+kubectl get pods
+
+# View pod events
+kubectl describe pod <pod-name>
+
+# Check logs
+kubectl logs <pod-name>
+```
+
+#### Health Check Failures
+
+```bash
+# Test health endpoint directly
+kubectl exec -it <pod-name> -- wget -qO- http://localhost:8080/healthz
+```
+
+#### HPA Not Scaling
+
+```bash
+# Verify metrics server is running
+kubectl get deployment metrics-server -n kube-system
+
+# Check HPA status
+kubectl describe hpa ship-a-service-app-hpa
+```
+
+#### Terraform Apply Failures
+
+```bash
+# Verify AWS credentials
+aws sts get-caller-identity
+
+# Check Terraform state
+terraform show
+
+# Force refresh
+terraform refresh
+```
+
+#### GitHub Actions OIDC Issues
+
+```bash
+# Verify OIDC provider exists
+aws iam list-open-id-connect-providers
+
+# Check role trust policy
+aws iam get-role --role-name <github-actions-role-name>
+```
