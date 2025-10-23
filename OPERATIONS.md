@@ -1,8 +1,8 @@
-
+Ship-a-Service: CI/CD Deployment & Management
 1️⃣ Deployments
 Development Environment
 
-Deploy to Dev using the CI/CD pipeline (build-and-push.yml) or manually:
+Deploy to Dev using CI/CD pipeline (build-and-push.yml) or manually:
 
 cd charts/app
 helm upgrade --install ship-a-service . \
@@ -18,7 +18,7 @@ helm upgrade --install ship-a-service . \
 
 --wait: waits until all pods are ready.
 
-Can also trigger manually from GitHub Actions Actions tab.
+You can also trigger manually from the GitHub Actions “Actions” tab.
 
 Production Environment
 
@@ -35,21 +35,16 @@ helm upgrade --install ship-a-service . \
 
 Rolling update strategy is applied.
 
-/healthz endpoint monitored; automatic rollback triggers if deployment fails.
+/healthz endpoint is monitored; automatic rollback triggers on failure.
 
-Manual approval required in the GitHub Actions workflow for production.
-
-
-
-
-
+Manual approval is required in GitHub Actions workflow for production.
 
 2️⃣ Rollbacks
-Helm Automated Rollback
 
-All Helm deployments in this project use the --atomic flag, which automatically reverts the release if health checks fail. For example, in production:
+Automated Helm Rollback
 
-# 🔟 Helm deploy with automated rollback
+All deployments use --atomic:
+
 - name: Helm deploy
   working-directory: charts/app
   run: |
@@ -64,21 +59,18 @@ All Helm deployments in this project use the --atomic flag, which automatically 
       --timeout 5m
 
 
---atomic ensures automatic rollback on failure.
+--atomic: rollback automatically on failure.
 
---wait waits until all pods are ready.
+--wait: ensures all pods are ready.
 
-This pattern is applied in all workflows (Dev and Prod) for safe deployments.
-
-
+This pattern ensures safe deployments for Dev and Prod.
 
 3️⃣ Troubleshooting & Observability
 App Metrics & Health
 
-Your Go app exposes two key endpoints:
+Your Go app exposes two endpoints:
 
 Health check: /healthz
-Returns JSON with status and environment:
 
 {
   "status": "ok",
@@ -87,12 +79,11 @@ Returns JSON with status and environment:
 
 
 Prometheus-style metrics: /metrics
-Tracks total requests:
 
 my_app_requests_total 42
 
 
-Check the metrics and health with:
+Check metrics & health:
 
 kubectl port-forward svc/ship-a-service-app 8080:8080
 curl http://localhost:8080/healthz
@@ -100,30 +91,19 @@ curl http://localhost:8080/metrics
 
 Kubernetes HPA & Pod Health
 
-List Horizontal Pod Autoscaler:
+List Horizontal Pod Autoscalers:
 
 kubectl get hpa
 kubectl describe hpa ship-a-service-app-hpa
 
-
-
-
-
-
-
-
-
-
-
 4️⃣ Cleanup
-Terraform Destroy (Safe)
 
-Use your safedestroy.sh script for safer deletion:
+Terraform Safe Destroy
+
+Use safedestroy.sh for safer deletion:
 
 cd infra/terraform
 ./safedestroy.sh
-
-
-Ensures Helm releases and dependent resources are deleted in the correct order.
+Deletes Helm releases and dependent resources in correct order.
 
 Avoid destroying EKS first to prevent orphaned subnets/security groups.
