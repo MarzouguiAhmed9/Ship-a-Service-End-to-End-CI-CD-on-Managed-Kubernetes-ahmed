@@ -34,14 +34,16 @@ jobs:
           role-session-name: GitHubActions-${{ github.run_id }}
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
-      # 3️⃣ Fetch AWS Account ID from Secrets Manager
-      - name: Get AWS Account ID from Secrets Manager
+      # 3️⃣ Fetch AWS Account ID from Vault
+      - name: Get AWS Account ID from Vault
         id: get_secret
         run: |
-          export AWS_ACCOUNT_ID=$(aws secretsmanager get-secret-value \
-            --secret-id github-aws-account-id \
-            --query SecretString \
-            --output text)
+          # Authenticate to Vault first if needed (example: using token)
+          export VAULT_TOKEN=${{ secrets.VAULT_TOKEN }}
+          export VAULT_ADDR=${{ secrets.VAULT_ADDR }}
+
+          # Fetch AWS Account ID
+          export AWS_ACCOUNT_ID=$(vault kv get -field=ACCOUNT_ID secret/aws)
           echo "AWS_ACCOUNT_ID=$AWS_ACCOUNT_ID" >> $GITHUB_ENV
 
       # 4️⃣ Verify AWS credentials
@@ -174,7 +176,7 @@ jobs:
           HELM_REV=$(helm list -n default -o json | jq -r '.[0].revision')
 
           cat > report.md << EOF
-          #  Deployment Report
+          # Deployment Report
 
           **Image**: \`$IMAGE_URI:${GITHUB_SHA::8}\`  
           **Helm Revision**: \`$HELM_REV\`  
@@ -182,7 +184,7 @@ jobs:
           **Time (UTC)**: $TIMESTAMP  
           **Trigger**: ${{ github.event_name == 'workflow_dispatch' && '🖱️ Manual' || '📝 Push' }}
 
-          ##  Links
+          ## Links
           - [Workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           - [SBOM](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           - [Security](${{ github.server_url }}/${{ github.repository }}/security/code-scanning)
