@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build-and-deploy:
-    runs-on: [self-hosted, vault]  # everything runs here
+    runs-on: [self-hosted]  # everything runs here
     environment: production
 
     env:
