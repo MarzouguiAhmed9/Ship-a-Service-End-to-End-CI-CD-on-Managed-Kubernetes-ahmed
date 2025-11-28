@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, vault] 
     environment: production  # triggers manual approval
 
     env:
