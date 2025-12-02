@@ -31,8 +31,6 @@ jobs:
         with:
           url: ${{ secrets.VAULT_ADDR }}
           method: jwt
-          role: github-role
-          jwtGithubAudience: https://github.com/${{ github.repository_owner }}
           secrets: |
             secret/data/aws ACCOUNT_ID | AWS_ACCOUNT_ID ;
 
