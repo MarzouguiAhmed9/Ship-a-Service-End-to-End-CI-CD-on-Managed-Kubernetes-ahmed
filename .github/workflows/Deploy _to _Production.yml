@@ -25,6 +25,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Login to Vault via OIDC
+        id: vault_login
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ secrets.VAULT_ADDR }}
+          method: oidc
+          role: github-role
+
       # Configure AWS credentials via OIDC
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -32,9 +40,6 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           role-session-name: GitHubActions-${{ github.run_id }}
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-
-      # Install Vault CLI
-
 
       # Fetch AWS Account ID from Vault
       - name: Get AWS Account ID from Vault
