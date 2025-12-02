@@ -27,11 +27,14 @@ jobs:
 
       - name: Login to Vault via OIDC
         id: vault_login
-        uses: hashicorp/vault-action@v2
+        uses: hashicorp/vault-action@v3
         with:
           url: ${{ secrets.VAULT_ADDR }}
-          method: oidc
+          method: jwt
           role: github-role
+          jwtGithubAudience: https://github.com/${{ github.repository_owner }}
+          secrets: |
+            secret/data/aws ACCOUNT_ID | AWS_ACCOUNT_ID ;
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -40,14 +43,15 @@ jobs:
           role-session-name: GitHubActions-${{ github.run_id }}
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
-      - name: Get AWS Account ID from Vault
-        id: get_secret
+      # Echo AWS Account ID fetched from Vault
+      - name: Show AWS Account ID from Vault
         run: |
-          export VAULT_TOKEN=${{ secrets.VAULT_TOKEN }}
-          export VAULT_ADDR=${{ secrets.VAULT_ADDR }}
-          AWS_ACCOUNT_ID=$(vault kv get -field=ACCOUNT_ID secret/aws)
-          echo "AWS_ACCOUNT_ID=$AWS_ACCOUNT_ID" >> $GITHUB_ENV
-          echo "🔹 AWS Account ID is: $AWS_ACCOUNT_ID"
+          echo "🔹 AWS Account ID from Vault: ${{ env.AWS_ACCOUNT_ID }}"
+
+      # Echo AWS Account ID to screen
+      - name: Show AWS Account ID
+        run: |
+          echo "🔹 AWS Account ID is: ${{ env.AWS_ACCOUNT_ID }}"
 
       - name: Verify AWS credentials
         run: |
